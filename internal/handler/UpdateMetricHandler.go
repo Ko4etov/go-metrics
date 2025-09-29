@@ -41,7 +41,7 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 	 var metric models.Metrics
 
 	switch metricType {
-		case "gauge":
+		case models.Gauge:
 			value, err := strconv.ParseFloat(metricValue, 64)
 			if err != nil {
 				http.Error(res, "Invalid gauge value", http.StatusBadRequest)
@@ -49,11 +49,11 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 			}
 			metric = models.Metrics{
 				ID:    metricName,
-				MType: "gauge",
+				MType: models.Gauge,
 				Value: &value,
 			}
 
-		case "counter":
+		case models.Counter:
 			value, err := strconv.ParseInt(metricValue, 10, 64)
 			if err != nil {
 				http.Error(res, "Invalid counter value", http.StatusBadRequest)
@@ -61,7 +61,7 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 			}
 			metric = models.Metrics{
 				ID:    metricName,
-				MType: "counter",
+				MType: models.Counter,
 				Delta: &value,
 			}
 
