@@ -53,19 +53,19 @@ func (ms *MemStorage) GetAllMetrics() map[string]interface{} {
 func (ms *MemStorage) UpdateMetric(metric models.Metrics) error {
 
     switch metric.MType {
-    case "gauge":
+    case models.Gauge:
         if metric.Value == nil {
             return ErrInvalidValue
         }
         ms.metrics[metric.ID] = metric
     
-    case "counter":
+    case models.Counter:
         if metric.Delta == nil {
             return ErrInvalidDelta
         }
         
         // Для counter добавляем значение к существующему
-        if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == "counter" {
+        if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
             newDelta := *existing.Delta + *metric.Delta
             metric.Delta = &newDelta
         }
