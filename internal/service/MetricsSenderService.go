@@ -40,6 +40,8 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
     url := s.BuildURL(metric)
+
+    log.Printf("%s", url)
     
     req, err := http.NewRequest("POST", url, nil)
     if err != nil {

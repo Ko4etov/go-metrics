@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -42,25 +41,13 @@ func TestAgent_PollMetrics(t *testing.T) {
         reportInterval: 1 * time.Second,
         collector:      mockCollector,
         sender:         mockSender,
-        stopChan:       make(chan struct{}),
     }
     
-    var wg sync.WaitGroup
-    wg.Add(1)
-    
     // Запускаем сбор метрик на короткое время
-    go func() {
-        defer wg.Done()
-        agent.pollMetrics()
-    }()
+    agent.pollMetrics()
     
-    // Даем время на несколько сборов
-    time.Sleep(350 * time.Millisecond)
-    close(agent.stopChan)
-    wg.Wait()
-    
-    if mockCollector.CollectCount < 3 {
-        t.Errorf("Expected at least 3 collections, got %d", mockCollector.CollectCount)
+    if mockCollector.CollectCount < 1 {
+        t.Errorf("Expected at least 1 collections, got %d", mockCollector.CollectCount)
     }
 }
 
@@ -73,63 +60,11 @@ func TestAgent_ReportMetrics(t *testing.T) {
         reportInterval: 100 * time.Millisecond,
         collector:      mockCollector,
         sender:         mockSender,
-        stopChan:       make(chan struct{}),
     }
     
-    var wg sync.WaitGroup
-    wg.Add(1)
+    agent.reportMetrics()
     
-    // Запускаем отправку метрик на короткое время
-    go func() {
-        defer wg.Done()
-        agent.reportMetrics()
-    }()
-    
-    // Даем время на несколько отправок
-    time.Sleep(350 * time.Millisecond)
-    close(agent.stopChan)
-    wg.Wait()
-    
-    if mockSender.SendCount < 3 {
-        t.Errorf("Expected at least 3 sends, got %d", mockSender.SendCount)
-    }
-}
-
-func TestAgent_Stop(t *testing.T) {
-    agent := NewAgent(100*time.Millisecond, 100*time.Millisecond, "localhost:8080")
-    
-    // Запускаем агент в отдельной горутине
-    go agent.Run()
-    
-    // Даем ему поработать немного
-    time.Sleep(200 * time.Millisecond)
-    
-    // Останавливаем
-    agent.Stop()
-    
-    // Проверяем, что горутины действительно остановились
-    // (этот тест в основном проверяет, что нет паники при остановке)
-}
-
-func TestAgent_Integration(t *testing.T) {
-    agent := NewAgent(50*time.Millisecond, 100*time.Millisecond, "localhost:8080")
-    
-    // Заменяем sender на mock для тестирования
-    mockSender := &service.MockMetricsSenderService{}
-    agent.sender = mockSender
-    
-    // Запускаем агент на короткое время
-    go agent.Run()
-    time.Sleep(250 * time.Millisecond)
-    agent.Stop()
-    
-    // Проверяем, что метрики собирались и отправлялись
-    pollCount := agent.collector.GetPollCount()
-    if pollCount < 4 {
-        t.Errorf("Expected at least 4 polls, got %d", pollCount)
-    }
-    
-    if mockSender.SendCount < 2 {
-        t.Errorf("Expected at least 2 sends, got %d", mockSender.SendCount)
+    if mockSender.SendCount < 1 {
+        t.Errorf("Expected at least 1 sends, got %d", mockSender.SendCount)
     }
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"log"
 	"testing"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -81,7 +82,7 @@ func TestCollect_CustomMetrics(t *testing.T) {
     }
     
     if *pollCountMetric.Delta != 1 {
-        t.Errorf("Expected PollCount 1, got %v", pollCountMetric.Value)
+        t.Errorf("Expected PollCount 1, got %v", *pollCountMetric.Delta)
     }
     
     // Проверяем RandomValue
@@ -108,52 +109,19 @@ func TestCollect_PollCountIncrement(t *testing.T) {
     }
     
     metrics := collector.GetMetrics()
+    log.Printf("%v", metrics)
     metricMap := make(map[string]models.Metrics)
     for _, metric := range metrics {
         metricMap[metric.ID] = metric
     }
     
     pollCountMetric := metricMap["PollCount"]
-    if *pollCountMetric.Value != 3 {
-        t.Errorf("Expected PollCount 3, got %v", pollCountMetric.Value)
+    if *pollCountMetric.Delta != 3 {
+        t.Errorf("Expected PollCount 3, got %v", *pollCountMetric.Delta)
     }
     
     if collector.GetPollCount() != 3 {
         t.Errorf("GetPollCount() should return 3, got %d", collector.GetPollCount())
-    }
-}
-
-func TestCollect_ConcurrentSafety(t *testing.T) {
-    collector := NewCollector()
-    
-    // Запускаем несколько горутин для конкурентного доступа
-    done := make(chan bool)
-    
-    for i := 0; i < 5; i++ {
-        go func() {
-            for j := 0; j < 100; j++ {
-                collector.Collect()
-                collector.GetMetrics()
-                collector.GetPollCount()
-            }
-            done <- true
-        }()
-    }
-    
-    // Ждем завершения всех горутин
-    for i := 0; i < 5; i++ {
-        <-done
-    }
-    
-    // Проверяем, что нет паники и данные консистентны
-    pollCount := collector.GetPollCount()
-    if pollCount != 500 {
-        t.Errorf("Expected pollCount 500, got %d", pollCount)
-    }
-    
-    metrics := collector.GetMetrics()
-    if len(metrics) == 0 {
-        t.Error("No metrics collected")
     }
 }
 

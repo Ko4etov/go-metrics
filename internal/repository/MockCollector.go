@@ -1,19 +1,14 @@
 package repository
 
 import (
-	"sync"
-
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MockCollector struct {
     CollectCount int
-    mu           sync.Mutex
 }
 
 func (m *MockCollector) Collect() {
-    m.mu.Lock()
-    defer m.mu.Unlock()
     m.CollectCount++
 }
 

@@ -3,7 +3,6 @@ package repository
 import (
 	"math/rand"
 	"runtime"
-	"sync"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
@@ -11,7 +10,6 @@ import (
 // Collector собирает метрики из runtime
 type Collector struct {
     metrics map[string]models.Metrics
-    mu      sync.RWMutex
     pollCount int64
 }
 
@@ -24,9 +22,7 @@ func NewCollector() *Collector {
 
 // Collect собирает все метрики
 func (c *Collector) Collect() {
-    c.mu.Lock()
-    defer c.mu.Unlock()
-
+    c.pollCount++
     // Собираем метрики из runtime
     var stats runtime.MemStats
     runtime.ReadMemStats(&stats)
@@ -63,19 +59,19 @@ func (c *Collector) Collect() {
     }
 
     for name, value := range runtimeMetrics {
-        valueCopy := value
         c.metrics[name] = models.Metrics{
             ID:  name,
             MType:  models.Gauge,
-            Value: &valueCopy,
+            Value: &value,
         }
     }
 
 	// PollCount - counter метрика
+    pollCountCopy := c.pollCount
     c.metrics["PollCount"] = models.Metrics{
         ID:  "PollCount",
         MType:  models.Counter,
-        Delta: &c.pollCount,
+        Delta: &pollCountCopy,
     }
 
     var randValue = rand.Float64() * 100
@@ -86,15 +82,10 @@ func (c *Collector) Collect() {
         MType:  models.Gauge,
         Value: &randValue, // Случайное значение от 0 до 100
     }
-
-    // Увеличиваем счетчик опросов
-    c.pollCount++
 }
 
 // GetMetrics возвращает все собранные метрики
 func (c *Collector) GetMetrics() []models.Metrics {
-    c.mu.RLock()
-    defer c.mu.RUnlock()
 
     metrics := make([]models.Metrics, 0, len(c.metrics))
     for _, metric := range c.metrics {
@@ -106,7 +97,5 @@ func (c *Collector) GetMetrics() []models.Metrics {
 
 // GetPollCount возвращает текущее значение счетчика опросов
 func (c *Collector) GetPollCount() int64 {
-    c.mu.RLock()
-    defer c.mu.RUnlock()
     return c.pollCount
 }
