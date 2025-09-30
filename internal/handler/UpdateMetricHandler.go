@@ -8,6 +8,7 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
@@ -22,9 +23,9 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	metricType := req.PathValue("metric_type")
-	metricName := req.PathValue("metric_name")
-	metricValue := req.PathValue("metric_value")
+	metricType := chi.URLParam(req, "metricType")
+    metricName := chi.URLParam(req, "metricName")
+    metricValue := chi.URLParam(req, "metricValue")
 
 	if metricType != "gauge" && metricType != "counter" {
 		http.Error(res, "Metric Type Not Allowed", http.StatusBadRequest)

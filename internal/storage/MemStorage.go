@@ -40,13 +40,8 @@ func GetInstance() *MemStorage {
 }
 
 // GetAllMetrics возвращает все метрики
-func (ms *MemStorage) GetAllMetrics() map[string]interface{} {
-    
-    result := make(map[string]interface{})
-    for k, v := range ms.metrics {
-        result[k] = v
-    }
-    return result
+func (ms *MemStorage) GetAllMetrics() map[string]models.Metrics {
+    return ms.metrics
 }
 
 // UpdateMetric обновляет или создает метрику
@@ -76,6 +71,12 @@ func (ms *MemStorage) UpdateMetric(metric models.Metrics) error {
     }
     
     return nil
+}
+
+func (ms *MemStorage) GetMetric(id string) (models.Metrics, bool) {
+    
+    metric, exists := ms.metrics[id]
+    return metric, exists
 }
 
 var (
