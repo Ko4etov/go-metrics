@@ -78,7 +78,5 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 
 	fmt.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
 
-	fmt.Printf("metric_type = %s, metric_name = %s, metric_value = %s\n", metricType, metricName, metricValue)
-
 	res.WriteHeader(http.StatusOK)
 }
