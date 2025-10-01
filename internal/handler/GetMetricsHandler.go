@@ -21,7 +21,7 @@ func GetMetricsHandler(w http.ResponseWriter, r *http.Request) {
         switch metric.MType {
         case "gauge":
             if metric.Value != nil {
-                fmt.Fprintf(w, "<li>%s: %.2f</li>\n", metric.ID, *metric.Value)
+                fmt.Fprintf(w, "<li>%s: %.5f</li>\n", metric.ID, *metric.Value)
             }
         case "counter":
             if metric.Delta != nil {

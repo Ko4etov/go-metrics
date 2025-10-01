@@ -18,10 +18,10 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Header.Get("Content-Type") != "text/plain" {
-		http.Error(res, "Content-Type Not Allowed", http.StatusBadRequest)
-		return
-	}
+	// if req.Header.Get("Content-Type") != "text/plain" {
+	// 	http.Error(res, "Content-Type Not Allowed", http.StatusBadRequest)
+	// 	return
+	// }
 
 	metricType := chi.URLParam(req, "metricType")
     metricName := chi.URLParam(req, "metricName")
