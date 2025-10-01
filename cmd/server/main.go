@@ -4,14 +4,24 @@ import (
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/handler"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/{metric_type}/{metric_name}/{metric_value}", handler.UpdateMetricHandler)
-	mux.HandleFunc("/metrics/", handler.GetMetricsHandler)
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
+    r := chi.NewRouter()
+
+    // Добавляем полезные middleware
+    r.Use(middleware.Logger) // Логирование всех запросов
+
+    // Объявляем маршруты
+    r.Post("/update/{metricType}/{metricName}/{metricValue}", handler.UpdateMetricHandler)
+	r.Get("/value/{metricType}/{metricName}", handler.GetMetricHandler)
+    r.Get("/", handler.GetMetricsHandler)
+
+    // Запускаем сервер
+    err := http.ListenAndServe(":8080", r)
+    if err != nil {
         panic(err)
     }
 }

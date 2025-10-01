@@ -8,10 +8,6 @@ import (
 )
 
 func GetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodGet {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
 
     storage := storage.GetInstance()
     metrics := storage.GetAllMetrics()
@@ -21,8 +17,17 @@ func GetMetricsHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintln(w, "<h1>Metrics</h1>")
     
     fmt.Fprintln(w, "<ul>")
-    for name, value := range metrics {
-        fmt.Fprintf(w, "<li>%s: %f</li>\n", name, value)
+    for _ , metric := range metrics {
+        switch metric.MType {
+        case "gauge":
+            if metric.Value != nil {
+                fmt.Fprintf(w, "<li>%s: %.5f</li>\n", metric.ID, *metric.Value)
+            }
+        case "counter":
+            if metric.Delta != nil {
+                fmt.Fprintf(w, "<li>%s: %d</li>\n", metric.ID, *metric.Delta)
+            }
+        }
     }
     fmt.Fprintln(w, "</ul>")
     

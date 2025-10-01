@@ -132,7 +132,7 @@ func TestSendMetric_Success(t *testing.T) {
     }))
     defer server.Close()
     
-    sender := NewMetricsSenderService(server.URL[7:]) // Убираем "http://"
+    sender := NewMetricsSenderService(server.URL[7:])
 
     value := 42.5
     

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
@@ -17,14 +18,14 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Header.Get("Content-Type") != "text/plain" {
-		http.Error(res, "Content-Type Not Allowed", http.StatusBadRequest)
-		return
-	}
+	// if req.Header.Get("Content-Type") != "text/plain" {
+	// 	http.Error(res, "Content-Type Not Allowed", http.StatusBadRequest)
+	// 	return
+	// }
 
-	metricType := req.PathValue("metric_type")
-	metricName := req.PathValue("metric_name")
-	metricValue := req.PathValue("metric_value")
+	metricType := chi.URLParam(req, "metricType")
+    metricName := chi.URLParam(req, "metricName")
+    metricValue := chi.URLParam(req, "metricValue")
 
 	if metricType != "gauge" && metricType != "counter" {
 		http.Error(res, "Metric Type Not Allowed", http.StatusBadRequest)
@@ -76,8 +77,6 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
     }
 
 	fmt.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
-
-	fmt.Printf("metric_type = %s, metric_name = %s, metric_value = %s\n", metricType, metricName, metricValue)
 
 	res.WriteHeader(http.StatusOK)
 }

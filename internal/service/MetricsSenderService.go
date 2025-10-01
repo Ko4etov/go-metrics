@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/go-resty/resty/v2"
 )
 
 // Sender отправляет метрики на сервер
@@ -40,26 +41,24 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
     url := s.BuildURL(metric)
-
-    log.Printf("%s", url)
     
-    req, err := http.NewRequest("POST", url, nil)
-    if err != nil {
-        return fmt.Errorf("create request failed: %w", err)
-    }
-
-    req.Header.Set("Content-Type", "text/plain")
-
-    resp, err := s.Client.Do(req)
+    // Создаем клиент с настройками
+    client := resty.New().
+        SetTimeout(5 * time.Second).
+        SetRetryCount(2)
+    
+    resp, err := client.R().
+        SetHeader("Content-Type", "text/plain").
+        Post(url)
+    
     if err != nil {
         return fmt.Errorf("send request failed: %w", err)
     }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("server returned status: %d", resp.StatusCode)
+    
+    if resp.IsError() {
+        return fmt.Errorf("server error: %s", resp.Status())
     }
-
+    
     return nil
 }
 
@@ -76,16 +75,4 @@ func (s *MetricsSenderService) BuildURL(metric models.Metrics) string {
 
     return fmt.Sprintf("http://%s/update/%s/%s/%s", 
         s.ServerAddress, metric.MType, metric.ID, value)
-}
-
-// SendMetricBatch отправляет метрики батчем (альтернативный метод)
-func (s *MetricsSenderService) SendMetricBatch(metrics []models.Metrics) error {
-    // Этот метод можно использовать для отправки метрик в одном запросе
-    // если сервер поддерживает batch updates
-    for _, metric := range metrics {
-        if err := s.SendMetric(metric); err != nil {
-            return err
-        }
-    }
-    return nil
 }
