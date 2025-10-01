@@ -31,7 +31,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "gauge",
             metricName:     "temperature",
             metricValue:    "23.5",
-            contentType:    "text/plain",
             expectedStatus: http.StatusOK,
             expectedBody:   "",
         },
@@ -41,7 +40,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "counter",
             metricName:     "requests",
             metricValue:    "10",
-            contentType:    "text/plain",
             expectedStatus: http.StatusOK,
             expectedBody:   "",
         },
@@ -51,27 +49,15 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "gauge",
             metricName:     "test",
             metricValue:    "1.0",
-            contentType:    "text/plain",
             expectedStatus: http.StatusMethodNotAllowed,
             expectedBody:   "Method Not Allowed\n",
         },
-        // {
-        //     name:           "invalid content type",
-        //     method:         http.MethodPost,
-        //     metricType:     "gauge",
-        //     metricName:     "test",
-        //     metricValue:    "1.0",
-        //     contentType:    "application/json",
-        //     expectedStatus: http.StatusBadRequest,
-        //     expectedBody:   "Content-Type Not Allowed\n",
-        // },
         {
             name:           "invalid metric type",
             method:         http.MethodPost,
             metricType:     "invalid_type",
             metricName:     "test",
             metricValue:    "1.0",
-            contentType:    "text/plain",
             expectedStatus: http.StatusBadRequest,
             expectedBody:   "Metric Type Not Allowed\n",
         },
@@ -81,7 +67,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "gauge",
             metricName:     "",
             metricValue:    "1.0",
-            contentType:    "text/plain",
             expectedStatus: http.StatusNotFound,
             expectedBody:   "Metric Not Found\n",
         },
@@ -91,7 +76,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "gauge",
             metricName:     "test",
             metricValue:    "not_a_float",
-            contentType:    "text/plain",
             expectedStatus: http.StatusBadRequest,
             expectedBody:   "Invalid gauge value\n",
         },
@@ -101,7 +85,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             metricType:     "counter",
             metricName:     "test",
             metricValue:    "not_an_int",
-            contentType:    "text/plain",
             expectedStatus: http.StatusBadRequest,
             expectedBody:   "Invalid counter value\n",
         },
@@ -114,8 +97,6 @@ func TestUpdateMetricHandler(t *testing.T) {
             if err != nil {
                 t.Fatalf("could not create request: %v", err)
             }
-
-            req.Header.Set("Content-Type", tt.contentType)
 
             rr := httptest.NewRecorder()
 
