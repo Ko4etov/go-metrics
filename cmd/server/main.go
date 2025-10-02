@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/handler"
@@ -9,6 +10,10 @@ import (
 )
 
 func main() {
+    serverAddress := flag.String("a", "localhost:8080", "Server address")
+
+    flag.Parse()
+
     r := chi.NewRouter()
 
     // Добавляем полезные middleware
@@ -20,7 +25,7 @@ func main() {
     r.Get("/", handler.GetMetricsHandler)
 
     // Запускаем сервер
-    err := http.ListenAndServe(":8080", r)
+    err := http.ListenAndServe(*serverAddress, r)
     if err != nil {
         panic(err)
     }
