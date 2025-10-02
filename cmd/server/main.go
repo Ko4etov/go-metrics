@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/Ko4etov/go-metrics/internal/handler"
 	"github.com/go-chi/chi/v5"
@@ -9,6 +12,13 @@ import (
 )
 
 func main() {
+    serverAddress := flag.String("a", "localhost:8080", "Server address")
+
+    flag.Parse()
+
+    log.Printf("%s", os.Args[1])
+    log.Printf("%s", *serverAddress)
+
     r := chi.NewRouter()
 
     // Добавляем полезные middleware
@@ -20,7 +30,7 @@ func main() {
     r.Get("/", handler.GetMetricsHandler)
 
     // Запускаем сервер
-    err := http.ListenAndServe(":8080", r)
+    err := http.ListenAndServe(*serverAddress, r)
     if err != nil {
         panic(err)
     }
