@@ -10,23 +10,23 @@ import (
 )
 
 func main() {
-    serverAddress := flag.String("a", "localhost:8080", "Server address")
+	serverAddress := flag.String("a", "localhost:8080", "Server address")
 
-    flag.Parse()
+	flag.Parse()
 
-    r := chi.NewRouter()
+	r := chi.NewRouter()
 
-    // Добавляем полезные middleware
-    r.Use(middleware.Logger) // Логирование всех запросов
+	// Добавляем полезные middleware
+	r.Use(middleware.Logger) // Логирование всех запросов
 
-    // Объявляем маршруты
-    r.Post("/update/{metricType}/{metricName}/{metricValue}", handler.UpdateMetricHandler)
-	r.Get("/value/{metricType}/{metricName}", handler.GetMetricHandler)
-    r.Get("/", handler.GetMetricsHandler)
+	// Объявляем маршруты
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", handler.UpdateMetric)
+	r.Get("/value/{metricType}/{metricName}", handler.GetMetric)
+	r.Get("/", handler.GetMetrics)
 
-    // Запускаем сервер
-    err := http.ListenAndServe(*serverAddress, r)
-    if err != nil {
-        panic(err)
-    }
+	// Запускаем сервер
+	err := http.ListenAndServe(*serverAddress, r)
+	if err != nil {
+		panic(err)
+	}
 }
