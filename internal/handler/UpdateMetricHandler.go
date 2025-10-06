@@ -7,25 +7,20 @@ import (
 	"strings"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
-	"github.com/Ko4etov/go-metrics/internal/storage"
+	"github.com/Ko4etov/go-metrics/internal/repository/storage"
 	"github.com/go-chi/chi/v5"
 )
 
-func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
+func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.Header().Set("Allowed", http.MethodPost)
 		http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// if req.Header.Get("Content-Type") != "text/plain" {
-	// 	http.Error(res, "Content-Type Not Allowed", http.StatusBadRequest)
-	// 	return
-	// }
-
 	metricType := chi.URLParam(req, "metricType")
-    metricName := chi.URLParam(req, "metricName")
-    metricValue := chi.URLParam(req, "metricValue")
+	metricName := chi.URLParam(req, "metricName")
+	metricValue := chi.URLParam(req, "metricValue")
 
 	if metricType != "gauge" && metricType != "counter" {
 		http.Error(res, "Metric Type Not Allowed", http.StatusBadRequest)
@@ -37,44 +32,44 @@ func UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	storage := storage.GetInstance()
+	storage := storage.New()
 
-	 var metric models.Metrics
+	var metric models.Metrics
 
 	switch metricType {
-		case models.Gauge:
-			value, err := strconv.ParseFloat(metricValue, 64)
-			if err != nil {
-				http.Error(res, "Invalid gauge value", http.StatusBadRequest)
-				return
-			}
-			metric = models.Metrics{
-				ID:    metricName,
-				MType: models.Gauge,
-				Value: &value,
-			}
-
-		case models.Counter:
-			value, err := strconv.ParseInt(metricValue, 10, 64)
-			if err != nil {
-				http.Error(res, "Invalid counter value", http.StatusBadRequest)
-				return
-			}
-			metric = models.Metrics{
-				ID:    metricName,
-				MType: models.Counter,
-				Delta: &value,
-			}
-
-		default:
-			http.Error(res, "Invalid metric type", http.StatusBadRequest)
+	case models.Gauge:
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			http.Error(res, "Invalid gauge value", http.StatusBadRequest)
 			return
-    }
+		}
+		metric = models.Metrics{
+			ID:    metricName,
+			MType: models.Gauge,
+			Value: &value,
+		}
 
-	    if err := storage.UpdateMetric(metric); err != nil {
-        http.Error(res, err.Error(), http.StatusBadRequest)
-        return
-    }
+	case models.Counter:
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			http.Error(res, "Invalid counter value", http.StatusBadRequest)
+			return
+		}
+		metric = models.Metrics{
+			ID:    metricName,
+			MType: models.Counter,
+			Delta: &value,
+		}
+
+	default:
+		http.Error(res, "Invalid metric type", http.StatusBadRequest)
+		return
+	}
+
+	if err := storage.UpdateMetric(metric); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	fmt.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
 

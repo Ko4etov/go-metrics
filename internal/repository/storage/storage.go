@@ -2,44 +2,35 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 var (
-	instance *MemStorage
+	instance Storage
 	once     sync.Once
 )
 
-type MemStorage struct {
+type MetricsStorage struct {
 	metrics map[string]models.Metrics
 }
 
-type Storage interface {
-	GetAllMetrics() map[string]models.Metrics
-
-    UpdateMetric(metric models.Metrics) error
-
-    GetMetric(id string) (models.Metrics, bool)
-
-    ResetAll()
-}
-
-func GetInstance() *MemStorage {
+func New() Storage {
 	once.Do(func() {
-		instance = &MemStorage{
+		instance = &MetricsStorage{
 			metrics: make(map[string]models.Metrics),
 		}
 	})
 	return instance
 }
 
-func (ms *MemStorage) GetAllMetrics() map[string]models.Metrics {
+func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
 	return ms.metrics
 }
 
-func (ms *MemStorage) UpdateMetric(metric models.Metrics) error {
+func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 	switch metric.MType {
 	case models.Gauge:
 		if metric.Value == nil {
@@ -66,13 +57,39 @@ func (ms *MemStorage) UpdateMetric(metric models.Metrics) error {
 	return nil
 }
 
-func (ms *MemStorage) GetMetric(id string) (models.Metrics, bool) {
+func (ms *MetricsStorage) Metric(id string) (models.Metrics, bool) {
 	metric, exists := ms.metrics[id]
 	return metric, exists
 }
 
-func (ms *MemStorage) ResetAll() {
-    ms.metrics = make(map[string]models.Metrics)
+func (ms *MetricsStorage) ResetAll() {
+	ms.metrics = make(map[string]models.Metrics)
+}
+
+func (ms *MetricsStorage) GaugeMetric(name string) (string, error) {
+	metric, exists := ms.Metric(name)
+	if !exists || metric.MType != "gauge" {
+		return "", fmt.Errorf("gauge metric not found")
+	}
+
+	if metric.Value == nil {
+		return "", fmt.Errorf("invalid gauge value")
+	}
+
+	return fmt.Sprintf("%g", *metric.Value), nil
+}
+
+func (ms *MetricsStorage) CounterMetric(name string) (string, error) {
+	metric, exists := ms.Metric(name)
+	if !exists || metric.MType != "counter" {
+		return "", fmt.Errorf("counter metric not found")
+	}
+
+	if metric.Delta == nil {
+		return "", fmt.Errorf("invalid counter value")
+	}
+
+	return fmt.Sprintf("%d", *metric.Delta), nil
 }
 
 var (
