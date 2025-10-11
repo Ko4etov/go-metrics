@@ -1,7 +1,7 @@
-package service
+package interfaces
 
 import "github.com/Ko4etov/go-metrics/internal/models"
 
-type MetricsSenderInterface interface {
+type MetricsSender interface {
 	SendMetrics(metrics []models.Metrics)
 }

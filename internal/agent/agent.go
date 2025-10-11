@@ -1,57 +1,67 @@
 package agent
 
 import (
-	"log"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/repository/collector"
-	"github.com/Ko4etov/go-metrics/internal/service"
+	"github.com/Ko4etov/go-metrics/internal/agent/interfaces"
+	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
+	"github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
+	"github.com/Ko4etov/go-metrics/internal/agent/service/poll_metrics_counter"
 )
 
 // Agent представляет основной агент сбора и отправки метрик
 type Agent struct {
-	pollInterval   time.Duration
-	reportInterval time.Duration
-	serverAddress  string
-	collector      collector.MetricsCollector
-	sender         service.MetricsSenderInterface
+	pollInterval       time.Duration
+	reportInterval     time.Duration
+	serverAddress      string
+	collector          interfaces.Collector
+	sender             interfaces.MetricsSender
+	pollMetricsCounter *poll_metrics_counter.PollMetricsCounter
 }
 
 // NewAgent создает новый экземпляр агента
-func NewAgent(pollInterval, reportInterval time.Duration, serverAddress string) *Agent {
-	collector := collector.New()
-	sender := service.NewMetricsSenderService(serverAddress)
+func NewAgent(pollInterval time.Duration, reportInterval time.Duration, serverAddress string) *Agent {
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := collector.New(pollMetricsCounter)
+	sender := metrics_sender.New(serverAddress)
 
 	return &Agent{
-		pollInterval:   pollInterval,
-		reportInterval: reportInterval,
-		serverAddress:  serverAddress,
-		collector:      collector,
-		sender:         sender,
+		pollInterval:       pollInterval,
+		reportInterval:     reportInterval,
+		serverAddress:      serverAddress,
+		collector:          collector,
+		sender:             sender,
+		pollMetricsCounter: pollMetricsCounter,
 	}
 }
 
 // Run запускает агент
 func (a *Agent) Run() {
+	pollTicker := time.NewTicker(a.pollInterval)
+	reportTicker := time.NewTicker(a.reportInterval)
+
+	defer reportTicker.Stop()
+	defer pollTicker.Stop()
+
 	for {
-		// Запускаем сбор метрик
-		a.pollMetrics()
-		// Запускаем отправку метрик
-		a.reportMetrics()
+		select {
+		case <-pollTicker.C:
+			a.pollMetrics()
+		case <-reportTicker.C:
+			a.reportMetrics()
+		}
 	}
 }
 
 // pollMetrics собирает метрики с заданным интервалом
 func (a *Agent) pollMetrics() {
-	log.Printf("pollMetrics")
 	a.collector.Collect()
-	time.Sleep(a.pollInterval)
+	a.pollMetricsCounter.Increment()
 }
 
 // reportMetrics отправляет метрики на сервер с заданным интервалом
 func (a *Agent) reportMetrics() {
-	log.Printf("reportMetrics")
 	metrics := a.collector.Metrics()
 	a.sender.SendMetrics(metrics)
-	time.Sleep(a.reportInterval)
+	a.pollMetricsCounter.Reset()
 }

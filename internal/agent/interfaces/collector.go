@@ -1,9 +1,8 @@
-package collector
+package interfaces
 
 import "github.com/Ko4etov/go-metrics/internal/models"
 
-type MetricsCollector interface {
+type Collector interface {
 	Collect()
 	Metrics() []models.Metrics
-	PollCount() int64
 }

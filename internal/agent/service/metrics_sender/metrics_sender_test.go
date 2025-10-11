@@ -1,4 +1,4 @@
-package service
+package metrics_sender
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewSender(t *testing.T) {
-    sender := NewMetricsSenderService("localhost:8080")
+    sender := New("localhost:8080")
     
     if sender == nil {
         t.Fatal("NewSender() returned nil")
@@ -25,7 +25,7 @@ func TestNewSender(t *testing.T) {
 }
 
 func TestBuildURL_GaugeMetric(t *testing.T) {
-    sender := NewMetricsSenderService("localhost:8080")
+    sender := New("localhost:8080")
     
     value := 42.5
     metric := models.Metrics{
@@ -43,7 +43,7 @@ func TestBuildURL_GaugeMetric(t *testing.T) {
 }
 
 func TestBuildURL_CounterMetric(t *testing.T) {
-    sender := NewMetricsSenderService("localhost:8080")
+    sender := New("localhost:8080")
     
     value := int64(100)
 
@@ -62,7 +62,7 @@ func TestBuildURL_CounterMetric(t *testing.T) {
 }
 
 func TestBuildURL_EdgeCases(t *testing.T) {
-    sender := NewMetricsSenderService("localhost:8080")
+    sender := New("localhost:8080")
 
     zeroValue := 0.0
     negativeValue := -10.5
@@ -132,7 +132,7 @@ func TestSendMetric_Success(t *testing.T) {
     }))
     defer server.Close()
     
-    sender := NewMetricsSenderService(server.URL[7:])
+    sender := New(server.URL[7:])
 
     value := 42.5
     
@@ -154,7 +154,7 @@ func TestSendMetric_ServerError(t *testing.T) {
     }))
     defer server.Close()
     
-    sender := NewMetricsSenderService(server.URL[7:])
+    sender := New(server.URL[7:])
 
     value := 42.5
     
@@ -171,7 +171,7 @@ func TestSendMetric_ServerError(t *testing.T) {
 }
 
 func TestSendMetric_NetworkError(t *testing.T) {
-    sender := NewMetricsSenderService("invalid-server:9999")
+    sender := New("invalid-server:9999")
 
     value := 42.5
     
@@ -195,7 +195,7 @@ func TestSendMetrics_MultipleMetrics(t *testing.T) {
     }))
     defer server.Close()
     
-    sender := NewMetricsSenderService(server.URL[7:])
+    sender := New(server.URL[7:])
 
     value1 := 1.0
     value2 := int64(2)
@@ -226,7 +226,7 @@ func TestSendMetrics_PartialFailure(t *testing.T) {
     }))
     defer server.Close()
     
-    sender := NewMetricsSenderService(server.URL[7:])
+    sender := New(server.URL[7:])
 
     value1 := 1.0
     value2 := int64(2)

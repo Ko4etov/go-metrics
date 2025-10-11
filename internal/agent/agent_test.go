@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/repository/collector"
-	"github.com/Ko4etov/go-metrics/internal/service"
+	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
+	"github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
 )
 
 func TestNewAgent(t *testing.T) {
@@ -34,7 +34,7 @@ func TestNewAgent(t *testing.T) {
 
 func TestAgent_PollMetrics(t *testing.T) {
 	mockCollector := &collector.CollectorMock{}
-	mockSender := &service.MockMetricsSenderService{}
+	mockSender := &metrics_sender.MockMetricsSenderService{}
 
 	agent := &Agent{
 		pollInterval:   100 * time.Millisecond,
@@ -53,7 +53,7 @@ func TestAgent_PollMetrics(t *testing.T) {
 
 func TestAgent_ReportMetrics(t *testing.T) {
 	mockCollector := &collector.CollectorMock{}
-	mockSender := &service.MockMetricsSenderService{}
+	mockSender := &metrics_sender.MockMetricsSenderService{}
 
 	agent := &Agent{
 		pollInterval:   1 * time.Second,

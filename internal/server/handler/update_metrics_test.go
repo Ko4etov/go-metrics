@@ -6,13 +6,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Ko4etov/go-metrics/internal/repository/storage"
+	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
+	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
 )
 
 func TestUpdateMetric(t *testing.T) {
-	// Reset storage before each test
 	storage := storage.New()
+	metricHandler := New(storage)
 	storage.ResetAll()
 
 	tests := []struct {
@@ -101,7 +102,7 @@ func TestUpdateMetric(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			r := chi.NewRouter()
-			r.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", UpdateMetric)
+			r.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 
 			r.ServeHTTP(rr, req)
 
@@ -123,7 +124,7 @@ func TestUpdateMetric(t *testing.T) {
 }
 
 // verifyMetricStored checks if the metric was correctly stored
-func verifyMetricStored(t *testing.T, storage storage.Storage, metricType, metricName, metricValue string) {
+func verifyMetricStored(t *testing.T, storage interfaces.Storage, metricType, metricName, metricValue string) {
 	t.Helper()
 
 	metric, exists := storage.Metric(metricName)

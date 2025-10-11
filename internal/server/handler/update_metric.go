@@ -1,22 +1,16 @@
 package handler
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
-	"github.com/Ko4etov/go-metrics/internal/repository/storage"
 	"github.com/go-chi/chi/v5"
 )
 
-func UpdateMetric(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.Header().Set("Allowed", http.MethodPost)
-		http.Error(res, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func (h *Handler) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
 	metricType := chi.URLParam(req, "metricType")
 	metricName := chi.URLParam(req, "metricName")
@@ -31,8 +25,6 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Metric Not Found", http.StatusNotFound)
 		return
 	}
-
-	storage := storage.New()
 
 	var metric models.Metrics
 
@@ -66,12 +58,12 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := storage.UpdateMetric(metric); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	if err := h.storage.UpdateMetric(metric); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
+	log.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
 
 	res.WriteHeader(http.StatusOK)
 }

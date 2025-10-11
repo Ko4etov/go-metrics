@@ -4,23 +4,23 @@ import (
 	"math/rand"
 	"runtime"
 
+	"github.com/Ko4etov/go-metrics/internal/agent/service/poll_metrics_counter"
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
-type Collector struct {
+type MetricsCollector struct {
 	metrics   map[string]models.Metrics
-	pollCount int64
+	pollCounter *poll_metrics_counter.PollMetricsCounter
 }
 
-func New() MetricsCollector {
-	return &Collector{
+func New(pollCounter *poll_metrics_counter.PollMetricsCounter) *MetricsCollector {
+	return &MetricsCollector{
 		metrics: make(map[string]models.Metrics),
+		pollCounter: pollCounter,
 	}
 }
 
-func (c *Collector) Collect() {
-	c.pollCount++
-
+func (c *MetricsCollector) Collect() {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 
@@ -54,6 +54,8 @@ func (c *Collector) Collect() {
 		"TotalAlloc":    float64(stats.TotalAlloc),
 	}
 
+	pollCount := c.pollCounter.Get()
+
 	for name, value := range runtimeMetrics {
 		c.metrics[name] = models.Metrics{
 			ID:    name,
@@ -62,7 +64,7 @@ func (c *Collector) Collect() {
 		}
 	}
 
-	pollCountCopy := c.pollCount
+	pollCountCopy := int64(pollCount)
 	c.metrics["PollCount"] = models.Metrics{
 		ID:    "PollCount",
 		MType: models.Counter,
@@ -78,15 +80,11 @@ func (c *Collector) Collect() {
 	}
 }
 
-func (c *Collector) Metrics() []models.Metrics {
+func (c *MetricsCollector) Metrics() []models.Metrics {
 	metrics := make([]models.Metrics, 0, len(c.metrics))
 	for _, metric := range c.metrics {
 		metrics = append(metrics, metric)
 	}
 
 	return metrics
-}
-
-func (c *Collector) PollCount() int64 {
-	return c.pollCount
 }

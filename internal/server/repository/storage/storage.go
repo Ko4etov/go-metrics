@@ -8,22 +8,16 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
-var (
-	instance Storage
-	once     sync.Once
-)
-
 type MetricsStorage struct {
 	metrics map[string]models.Metrics
+	mu *sync.Mutex
 }
 
-func New() Storage {
-	once.Do(func() {
-		instance = &MetricsStorage{
-			metrics: make(map[string]models.Metrics),
-		}
-	})
-	return instance
+func New() *MetricsStorage {
+	return &MetricsStorage{
+		metrics: make(map[string]models.Metrics),
+		mu: &sync.Mutex{},
+	}
 }
 
 func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
@@ -31,35 +25,38 @@ func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
 }
 
 func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	
 	switch metric.MType {
-	case models.Gauge:
-		if metric.Value == nil {
-			return ErrInvalidValue
-		}
-		ms.metrics[metric.ID] = metric
+		case models.Gauge:
+			if metric.Value == nil {
+				return ErrInvalidValue
+			}
+			ms.metrics[metric.ID] = metric
 
-	case models.Counter:
-		if metric.Delta == nil {
-			return ErrInvalidDelta
-		}
+		case models.Counter:
+			if metric.Delta == nil {
+				return ErrInvalidDelta
+			}
 
-		// Для counter добавляем значение к существующему
-		if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
-			newDelta := *existing.Delta + *metric.Delta
-			metric.Delta = &newDelta
-		}
-		ms.metrics[metric.ID] = metric
+			// Для counter добавляем значение к существующему
+			if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
+				newDelta := *existing.Delta + *metric.Delta
+				metric.Delta = &newDelta
+			}
+			ms.metrics[metric.ID] = metric
 
-	default:
-		return ErrInvalidType
+		default:
+			return ErrInvalidType
 	}
 
 	return nil
 }
 
 func (ms *MetricsStorage) Metric(id string) (models.Metrics, bool) {
-	metric, exists := ms.metrics[id]
-	return metric, exists
+	metric, ok := ms.metrics[id]
+	return metric, ok
 }
 
 func (ms *MetricsStorage) ResetAll() {

@@ -1,14 +1,15 @@
 package collector
 
 import (
-	"log"
 	"testing"
 
+	"github.com/Ko4etov/go-metrics/internal/agent/service/poll_metrics_counter"
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 func TestNewCollector(t *testing.T) {
-	collector := New()
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := New(pollMetricsCounter)
 
 	if collector == nil {
 		t.Fatal("NewCollector() returned nil")
@@ -18,13 +19,14 @@ func TestNewCollector(t *testing.T) {
 		t.Error("Metrics map should be initialized")
 	}
 
-	if collector.PollCount() != 0 {
-		t.Errorf("Expected initial pollCount 0, got %d", collector.PollCount())
+	if collector.pollCounter.Get() != 0 {
+		t.Errorf("Expected initial pollCount 0, got %d", collector.pollCounter.Get())
 	}
 }
 
 func TestCollect_RuntimeMetrics(t *testing.T) {
-	collector := New()
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := New(pollMetricsCounter)
 	collector.Collect()
 
 	metrics := collector.Metrics()
@@ -62,7 +64,8 @@ func TestCollect_RuntimeMetrics(t *testing.T) {
 }
 
 func TestCollect_CustomMetrics(t *testing.T) {
-	collector := New()
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := New(pollMetricsCounter)
 	collector.Collect()
 
 	metrics := collector.Metrics()
@@ -101,7 +104,8 @@ func TestCollect_CustomMetrics(t *testing.T) {
 }
 
 func TestCollect_PollCountIncrement(t *testing.T) {
-	collector := New()
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := New(pollMetricsCounter)
 
 	// Собираем метрики несколько раз
 	for i := 0; i < 3; i++ {
@@ -109,7 +113,6 @@ func TestCollect_PollCountIncrement(t *testing.T) {
 	}
 
 	metrics := collector.Metrics()
-	log.Printf("%v", metrics)
 	metricMap := make(map[string]models.Metrics)
 	for _, metric := range metrics {
 		metricMap[metric.ID] = metric
@@ -120,13 +123,14 @@ func TestCollect_PollCountIncrement(t *testing.T) {
 		t.Errorf("Expected PollCount 3, got %v", *pollCountMetric.Delta)
 	}
 
-	if collector.PollCount() != 3 {
-		t.Errorf("GetPollCount() should return 3, got %d", collector.PollCount())
+	if collector.pollCounter.Get() != 3 {
+		t.Errorf("GetPollCount() should return 3, got %d", collector.pollCounter.Get())
 	}
 }
 
 func TestGetMetrics_ReturnsCopy(t *testing.T) {
-	collector := New()
+	pollMetricsCounter := poll_metrics_counter.New()
+	collector := New(pollMetricsCounter)
 	collector.Collect()
 
 	metrics1 := collector.Metrics()

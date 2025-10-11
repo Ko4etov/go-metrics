@@ -1,4 +1,4 @@
-package service
+package metrics_sender
 
 import (
 	"sync"

@@ -1,4 +1,4 @@
-package service
+package metrics_sender
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type MetricsSenderService struct {
 }
 
 // NewSender создает новый отправитель
-func NewMetricsSenderService(serverAddress string) *MetricsSenderService {
+func New(serverAddress string) *MetricsSenderService {
     return &MetricsSenderService{
         ServerAddress: serverAddress,
         Client: &http.Client{
