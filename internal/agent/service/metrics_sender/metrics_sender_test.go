@@ -1,4 +1,4 @@
-package metrics_sender
+package metricssender
 
 import (
 	"net/http"

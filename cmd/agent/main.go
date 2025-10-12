@@ -11,7 +11,7 @@ func main() {
 	agentConfig := config.New()
 
 	// Создание агента
-	agent.NewAgent(
+	agent.New(
 		time.Duration(agentConfig.PollInterval)*time.Second,
 		time.Duration(agentConfig.ReportInterval)*time.Second,
 		agentConfig.AgentAddress,

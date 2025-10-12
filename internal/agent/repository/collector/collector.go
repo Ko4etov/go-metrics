@@ -4,16 +4,16 @@ import (
 	"math/rand"
 	"runtime"
 
-	"github.com/Ko4etov/go-metrics/internal/agent/service/poll_metrics_counter"
+	pollcounter "github.com/Ko4etov/go-metrics/internal/agent/service/poll_counter"
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MetricsCollector struct {
 	metrics   map[string]models.Metrics
-	pollCounter *poll_metrics_counter.PollMetricsCounter
+	pollCounter *pollcounter.PollCounter
 }
 
-func New(pollCounter *poll_metrics_counter.PollMetricsCounter) *MetricsCollector {
+func New(pollCounter *pollcounter.PollCounter) *MetricsCollector {
 	return &MetricsCollector{
 		metrics: make(map[string]models.Metrics),
 		pollCounter: pollCounter,

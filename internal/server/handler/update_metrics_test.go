@@ -51,7 +51,7 @@ func TestUpdateMetric(t *testing.T) {
 			metricName:     "test",
 			metricValue:    "1.0",
 			expectedStatus: http.StatusMethodNotAllowed,
-			expectedBody:   "Method Not Allowed\n",
+			expectedBody:   "",
 		},
 		{
 			name:           "invalid metric type",
@@ -102,7 +102,7 @@ func TestUpdateMetric(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			r := chi.NewRouter()
-			r.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
+			r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 
 			r.ServeHTTP(rr, req)
 

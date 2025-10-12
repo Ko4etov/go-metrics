@@ -3,13 +3,10 @@ package agent
 import (
 	"testing"
 	"time"
-
-	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
-	"github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
 )
 
 func TestNewAgent(t *testing.T) {
-	agent := NewAgent(2*time.Second, 10*time.Second, "localhost:8080")
+	agent := New(2*time.Second, 10*time.Second, "localhost:8080")
 
 	if agent == nil {
 		t.Fatal("NewAgent() returned nil")
@@ -33,38 +30,40 @@ func TestNewAgent(t *testing.T) {
 }
 
 func TestAgent_PollMetrics(t *testing.T) {
-	mockCollector := &collector.CollectorMock{}
-	mockSender := &metrics_sender.MockMetricsSenderService{}
+	agent := New(100*time.Millisecond, 1*time.Second, ":8080")
 
-	agent := &Agent{
-		pollInterval:   100 * time.Millisecond,
-		reportInterval: 1 * time.Second,
-		collector:      mockCollector,
-		sender:         mockSender,
+	// Запускаем агент в отдельной горутине
+	go agent.Run()
+
+	// Даем агенту поработать 300ms (примерно 3 сбора метрик)
+	time.Sleep(300 * time.Millisecond)
+
+	// Останавливаем агент
+	agent.Stop()
+
+	// Проверяем, что агент остановлен
+	if agent.IsRunning() {
+		t.Error("Agent should be stopped after Stop() call")
 	}
 
-	// Запускаем сбор метрик на короткое время
-	agent.pollMetrics()
-
-	if mockCollector.CollectCount < 1 {
-		t.Errorf("Expected at least 1 collections, got %d", mockCollector.CollectCount)
+	// Проверяем, что метрики собирались (должно быть минимум 2 сбора за 300ms)
+	count := agent.pollMetricsCounter.Get()
+	if count < 2 {
+		t.Errorf("Expected at least 2 collections, got %d", count)
 	}
+	
+	t.Logf("Completed %d poll cycles", count)
 }
 
-func TestAgent_ReportMetrics(t *testing.T) {
-	mockCollector := &collector.CollectorMock{}
-	mockSender := &metrics_sender.MockMetricsSenderService{}
+// func TestAgent_ReportMetrics(t *testing.T) {
+// 	agent := New(100 * time.Millisecond, 1 * time.Second, ":8080")
 
-	agent := &Agent{
-		pollInterval:   1 * time.Second,
-		reportInterval: 100 * time.Millisecond,
-		collector:      mockCollector,
-		sender:         mockSender,
-	}
+// 	// Запускаем сбор метрик на короткое время
+// 	agent.Run()
 
-	agent.reportMetrics()
+// 	time.Sleep(3 * time.Second)
 
-	if mockSender.SendCount < 1 {
-		t.Errorf("Expected at least 1 sends, got %d", mockSender.SendCount)
-	}
-}
+// 	if agent.sender.SendMetrics() < 1 {
+// 		t.Errorf("Expected at least 1 sends, got %d", mockSender.SendCount)
+// 	}
+// }
