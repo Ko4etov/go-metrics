@@ -42,28 +42,15 @@ func TestAgent_PollMetrics(t *testing.T) {
 	agent.Stop()
 
 	// Проверяем, что агент остановлен
-	// if agent.IsRunning() {
-	// 	t.Error("Agent should be stopped after Stop() call")
-	// }
+	if agent.IsRunning() {
+		t.Error("Agent should be stopped after Stop() call")
+	}
 
 	// Проверяем, что метрики собирались (должно быть минимум 2 сбора за 300ms)
-	count := agent.pollMetricsCounter.Get()
+	count := agent.collector.PollCount()
 	if count < 2 {
 		t.Errorf("Expected at least 2 collections, got %d", count)
 	}
 	
 	t.Logf("Completed %d poll cycles", count)
 }
-
-// func TestAgent_ReportMetrics(t *testing.T) {
-// 	agent := New(100 * time.Millisecond, 1 * time.Second, ":8080")
-
-// 	// Запускаем сбор метрик на короткое время
-// 	agent.Run()
-
-// 	time.Sleep(3 * time.Second)
-
-// 	if agent.sender.SendMetrics() < 1 {
-// 		t.Errorf("Expected at least 1 sends, got %d", mockSender.SendCount)
-// 	}
-// }

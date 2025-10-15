@@ -4,19 +4,18 @@ import (
 	"math/rand"
 	"runtime"
 
-	pollcounter "github.com/Ko4etov/go-metrics/internal/agent/service/poll_counter"
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MetricsCollector struct {
 	metrics   map[string]models.Metrics
-	pollCounter *pollcounter.PollCounter
+	pollCounter int
 }
 
-func New(pollCounter *pollcounter.PollCounter) *MetricsCollector {
+func New() *MetricsCollector {
 	return &MetricsCollector{
 		metrics: make(map[string]models.Metrics),
-		pollCounter: pollCounter,
+		pollCounter: 0,
 	}
 }
 
@@ -54,7 +53,9 @@ func (c *MetricsCollector) Collect() {
 		"TotalAlloc":    float64(stats.TotalAlloc),
 	}
 
-	pollCount := c.pollCounter.Get()
+	c.PollCountIncrement()
+
+	pollCount := c.PollCount()
 
 	for name, value := range runtimeMetrics {
 		c.metrics[name] = models.Metrics{
@@ -87,4 +88,16 @@ func (c *MetricsCollector) Metrics() []models.Metrics {
 	}
 
 	return metrics
+}
+
+func (c *MetricsCollector) PollCountReset() {
+	c.pollCounter = 0
+}
+
+func (c *MetricsCollector) PollCountIncrement() {
+	c.pollCounter++ 
+}
+
+func (c *MetricsCollector) PollCount() int {
+	return c.pollCounter 
 }

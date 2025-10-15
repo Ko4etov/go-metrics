@@ -1,18 +1,13 @@
 package collector
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	pollcounter "github.com/Ko4etov/go-metrics/internal/agent/service/poll_counter"
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 func TestNewCollector(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "test_pollCounter.txt")
-	pollMetricsCounter := pollcounter.New(tmpFile)
-	collector := New(pollMetricsCounter)
+	collector := New()
 
 	if collector == nil {
 		t.Fatal("NewCollector() returned nil")
@@ -22,15 +17,13 @@ func TestNewCollector(t *testing.T) {
 		t.Error("Metrics map should be initialized")
 	}
 
-	if collector.pollCounter.Get() != 0 {
-		t.Errorf("Expected initial pollCount 0, got %d", collector.pollCounter.Get())
+	if collector.PollCount() != 0 {
+		t.Errorf("Expected initial pollCount 0, got %d", collector.PollCount())
 	}
 }
 
 func TestCollect_RuntimeMetrics(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "test_pollCounter.txt")
-	pollMetricsCounter := pollcounter.New(tmpFile)
-	collector := New(pollMetricsCounter)
+	collector := New()
 	collector.Collect()
 
 	metrics := collector.Metrics()
@@ -68,9 +61,7 @@ func TestCollect_RuntimeMetrics(t *testing.T) {
 }
 
 func TestCollect_CustomMetrics(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "test_pollCounter.txt")
-	pollMetricsCounter := pollcounter.New(tmpFile)
-	collector := New(pollMetricsCounter)
+	collector := New()
 	collector.Collect()
 
 	metrics := collector.Metrics()
@@ -89,10 +80,6 @@ func TestCollect_CustomMetrics(t *testing.T) {
 		t.Errorf("PollCount should be counter, got %s", pollCountMetric.MType)
 	}
 
-	// if *pollCountMetric.Delta != 1 {
-	// 	t.Errorf("Expected PollCount 1, got %v", *pollCountMetric.Delta)
-	// }
-
 	// Проверяем RandomValue
 	randomValueMetric, exists := metricMap["RandomValue"]
 	if !exists {
@@ -109,9 +96,7 @@ func TestCollect_CustomMetrics(t *testing.T) {
 }
 
 func TestCollect_PollCountIncrement(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "test_pollCounter.txt")
-	pollMetricsCounter := pollcounter.New(tmpFile)
-	collector := New(pollMetricsCounter)
+	collector := New()
 
 	// Собираем метрики несколько раз
 	for i := 0; i < 3; i++ {
@@ -124,20 +109,18 @@ func TestCollect_PollCountIncrement(t *testing.T) {
 		metricMap[metric.ID] = metric
 	}
 
-	// pollCountMetric := metricMap["PollCount"]
-	// if *pollCountMetric.Delta != 3 {
-	// 	t.Errorf("Expected PollCount 3, got %v", *pollCountMetric.Delta)
-	// }
+	pollCountMetric := metricMap["PollCount"]
+	if *pollCountMetric.Delta != 3 {
+		t.Errorf("Expected PollCount 3, got %v", *pollCountMetric.Delta)
+	}
 
-	// if collector.pollCounter.Get() != 3 {
-	// 	t.Errorf("GetPollCount() should return 3, got %d", collector.pollCounter.Get())
-	// }
+	if *pollCountMetric.Delta != 3 {
+		t.Errorf("GetPollCount() should return 3, got %d", *pollCountMetric.Delta)
+	}
 }
 
 func TestGetMetrics_ReturnsCopy(t *testing.T) {
-	tmpFile := filepath.Join(os.TempDir(), "test_pollCounter.txt")
-	pollMetricsCounter := pollcounter.New(tmpFile)
-	collector := New(pollMetricsCounter)
+	collector := New()
 	collector.Collect()
 
 	metrics1 := collector.Metrics()

@@ -8,7 +8,6 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/agent/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
 	metricssender "github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
-	pollcounter "github.com/Ko4etov/go-metrics/internal/agent/service/poll_counter"
 )
 
 // Agent представляет основной агент сбора и отправки метрик
@@ -18,7 +17,6 @@ type Agent struct {
 	serverAddress      string
 	collector          interfaces.Collector
 	sender             interfaces.MetricsSender
-	pollMetricsCounter *pollcounter.PollCounter
 	ctx                context.Context
 	cancel             context.CancelFunc
 	wg                 sync.WaitGroup
@@ -28,8 +26,7 @@ type Agent struct {
 
 // NewAgent создает новый экземпляр агента
 func New(pollInterval time.Duration, reportInterval time.Duration, serverAddress string) *Agent {
-	pollMetricsCounter := pollcounter.New("")
-	collector := collector.New(pollMetricsCounter)
+	collector := collector.New()
 	sender := metricssender.New(serverAddress)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -39,7 +36,6 @@ func New(pollInterval time.Duration, reportInterval time.Duration, serverAddress
 		serverAddress:      serverAddress,
 		collector:          collector,
 		sender:             sender,
-		pollMetricsCounter: pollMetricsCounter,
 		ctx:                ctx,
 		cancel:             cancel,
 		isRunning:          false,
@@ -108,7 +104,6 @@ func (a *Agent) pollMetrics() {
 			return
 		default:
 			a.collector.Collect()
-			a.pollMetricsCounter.Increment()
 	}
 }
 
@@ -120,6 +115,6 @@ func (a *Agent) reportMetrics() {
 		default:
 			metrics := a.collector.Metrics()
 			a.sender.SendMetrics(metrics)
-			a.pollMetricsCounter.Reset()
+			a.collector.PollCountReset()
 	}
 }
