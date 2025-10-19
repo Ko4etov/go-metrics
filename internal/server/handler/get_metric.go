@@ -4,16 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Ko4etov/go-metrics/internal/repository/storage"
 	"github.com/go-chi/chi/v5"
 )
 
-func GetMetric(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	// Извлекаем параметры из URL
 	metricType := chi.URLParam(r, "metricType")
 	metricName := chi.URLParam(r, "metricName")
@@ -24,17 +18,15 @@ func GetMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storage := storage.New()
-
 	// Получаем метрику из хранилища
 	var value string
 	var err error
 
 	switch metricType {
 	case "gauge":
-		value, err = storage.GaugeMetric(metricName)
+		value, err = h.storage.GaugeMetric(metricName)
 	case "counter":
-		value, err = storage.CounterMetric(metricName)
+		value, err = h.storage.CounterMetric(metricName)
 	default:
 		http.Error(w, "Invalid metric type", http.StatusBadRequest)
 		return

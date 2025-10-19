@@ -1,4 +1,4 @@
-package storage
+package interfaces
 
 import "github.com/Ko4etov/go-metrics/internal/models"
 

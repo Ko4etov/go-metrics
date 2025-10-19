@@ -7,20 +7,19 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
-type Collector struct {
+type MetricsCollector struct {
 	metrics   map[string]models.Metrics
-	pollCount int64
+	pollCounter int
 }
 
-func New() MetricsCollector {
-	return &Collector{
+func New() *MetricsCollector {
+	return &MetricsCollector{
 		metrics: make(map[string]models.Metrics),
+		pollCounter: 0,
 	}
 }
 
-func (c *Collector) Collect() {
-	c.pollCount++
-
+func (c *MetricsCollector) Collect() {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 
@@ -54,6 +53,10 @@ func (c *Collector) Collect() {
 		"TotalAlloc":    float64(stats.TotalAlloc),
 	}
 
+	c.PollCountIncrement()
+
+	pollCount := c.PollCount()
+
 	for name, value := range runtimeMetrics {
 		c.metrics[name] = models.Metrics{
 			ID:    name,
@@ -62,7 +65,7 @@ func (c *Collector) Collect() {
 		}
 	}
 
-	pollCountCopy := c.pollCount
+	pollCountCopy := int64(pollCount)
 	c.metrics["PollCount"] = models.Metrics{
 		ID:    "PollCount",
 		MType: models.Counter,
@@ -78,7 +81,7 @@ func (c *Collector) Collect() {
 	}
 }
 
-func (c *Collector) Metrics() []models.Metrics {
+func (c *MetricsCollector) Metrics() []models.Metrics {
 	metrics := make([]models.Metrics, 0, len(c.metrics))
 	for _, metric := range c.metrics {
 		metrics = append(metrics, metric)
@@ -87,6 +90,14 @@ func (c *Collector) Metrics() []models.Metrics {
 	return metrics
 }
 
-func (c *Collector) PollCount() int64 {
-	return c.pollCount
+func (c *MetricsCollector) PollCountReset() {
+	c.pollCounter = 0
+}
+
+func (c *MetricsCollector) PollCountIncrement() {
+	c.pollCounter++ 
+}
+
+func (c *MetricsCollector) PollCount() int {
+	return c.pollCounter 
 }

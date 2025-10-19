@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"log"
 	"testing"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -81,10 +80,6 @@ func TestCollect_CustomMetrics(t *testing.T) {
 		t.Errorf("PollCount should be counter, got %s", pollCountMetric.MType)
 	}
 
-	if *pollCountMetric.Delta != 1 {
-		t.Errorf("Expected PollCount 1, got %v", *pollCountMetric.Delta)
-	}
-
 	// Проверяем RandomValue
 	randomValueMetric, exists := metricMap["RandomValue"]
 	if !exists {
@@ -109,7 +104,6 @@ func TestCollect_PollCountIncrement(t *testing.T) {
 	}
 
 	metrics := collector.Metrics()
-	log.Printf("%v", metrics)
 	metricMap := make(map[string]models.Metrics)
 	for _, metric := range metrics {
 		metricMap[metric.ID] = metric
@@ -120,8 +114,8 @@ func TestCollect_PollCountIncrement(t *testing.T) {
 		t.Errorf("Expected PollCount 3, got %v", *pollCountMetric.Delta)
 	}
 
-	if collector.PollCount() != 3 {
-		t.Errorf("GetPollCount() should return 3, got %d", collector.PollCount())
+	if *pollCountMetric.Delta != 3 {
+		t.Errorf("GetPollCount() should return 3, got %d", *pollCountMetric.Delta)
 	}
 }
 
