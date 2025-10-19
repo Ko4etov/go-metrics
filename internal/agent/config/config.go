@@ -1,16 +1,16 @@
 package config
 
 type AgentConfig struct {
-	AgentAddress string
+	Address string
 	PollInterval int
 	ReportInterval int
 }
 
 func New() *AgentConfig {
-	parseAgentFlags()
+	parseAgentParameters()
 
 	return &AgentConfig{
-		AgentAddress: agentAddress,
+		Address: address,
 		PollInterval: pollInterval,
 		ReportInterval: reportInterval,
 	}

@@ -14,6 +14,6 @@ func main() {
 	agent.New(
 		time.Duration(agentConfig.PollInterval)*time.Second,
 		time.Duration(agentConfig.ReportInterval)*time.Second,
-		agentConfig.AgentAddress,
+		agentConfig.Address,
 	).Run()
 }

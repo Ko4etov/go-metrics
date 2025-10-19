@@ -5,9 +5,9 @@ type ServerConfig struct {
 }
 
 func New() *ServerConfig {
-	parseServerFlags()
+	parseServerParameters()
 
 	return &ServerConfig{
-		ServerAddress: serverAddress,
+		ServerAddress: address,
 	}
 }
