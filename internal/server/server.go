@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/server/router"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 type Server struct {
@@ -11,7 +12,6 @@ type Server struct {
 }
 
 func New(serverAddress string) *Server {
-	
 	return &Server{
 		serverAddress: serverAddress,
 	}
@@ -19,6 +19,10 @@ func New(serverAddress string) *Server {
 
 func (s *Server) Run() {
 	serverRouter := router.New()
+
+	if err := logger.Initialize("info"); err != nil {
+        panic(err)
+    }
 
 	// Запускаем сервер
 	err := http.ListenAndServe(s.serverAddress, serverRouter)
