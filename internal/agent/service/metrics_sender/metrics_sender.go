@@ -41,6 +41,30 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
     url := s.BuildURL(metric)
+
+    // Создаем клиент с настройками
+    client := resty.New().
+        SetTimeout(5 * time.Second).
+        SetRetryCount(2)
+
+    resp, err := client.R().
+        SetHeader("Content-Type", "text/plain").
+        Post(url)
+    
+    if err != nil {
+        return fmt.Errorf("send request failed: %w", err)
+    }
+    
+    if resp.IsError() {
+        return fmt.Errorf("server error: %s", resp.Status())
+    }
+    
+    return nil
+}
+
+// sendMetric отправляет одну метрику на сервер
+func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
+    url := fmt.Sprintf("http://%s/update", s.ServerAddress)
     
     // Создаем клиент с настройками
     client := resty.New().
@@ -48,7 +72,8 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
         SetRetryCount(2)
     
     resp, err := client.R().
-        SetHeader("Content-Type", "text/plain").
+        SetBody(metric).
+        SetHeader("Content-Type", "application/json").
         Post(url)
     
     if err != nil {

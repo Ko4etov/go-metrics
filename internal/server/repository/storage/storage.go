@@ -89,6 +89,32 @@ func (ms *MetricsStorage) CounterMetric(name string) (string, error) {
 	return fmt.Sprintf("%d", *metric.Delta), nil
 }
 
+func (ms *MetricsStorage) GaugeMetricModel(name string) (*models.Metrics, error) {
+	metric, exists := ms.Metric(name)
+	if !exists || metric.MType != "gauge" {
+		return &models.Metrics{}, fmt.Errorf("gauge metric not found")
+	}
+
+	if metric.Value == nil {
+		return &models.Metrics{}, fmt.Errorf("invalid gauge value")
+	}
+
+	return &metric, nil
+}
+
+func (ms *MetricsStorage) CounterMetricModel(name string) (*models.Metrics, error) {
+	metric, exists := ms.Metric(name)
+	if !exists || metric.MType != "counter" {
+		return &models.Metrics{}, fmt.Errorf("counter metric not found")
+	}
+
+	if metric.Delta == nil {
+		return &models.Metrics{}, fmt.Errorf("invalid counter value")
+	}
+
+	return &metric, nil
+}
+
 var (
 	ErrInvalidType  = errors.New("invalid metric type")
 	ErrInvalidValue = errors.New("invalid value for gauge metric")
