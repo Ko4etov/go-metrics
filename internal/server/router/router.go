@@ -20,8 +20,8 @@ func New() *chi.Mux {
 	r.Use(middlewares.WithLogging)
 
 	// Объявляем маршруты
-	// r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
-	r.Post("/update", metricHandler.UpdateMetricJson)
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
+	r.Post("/update", metricHandler.UpdateMetricJSON)
 	r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 	r.Get("/", metricHandler.GetMetrics)
 
