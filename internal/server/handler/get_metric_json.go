@@ -44,11 +44,11 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+
 	if err := json.NewEncoder(res).Encode(outputMetric); err != nil {
 		http.Error(res, "Error encoding JSON", http.StatusInternalServerError)
 		return
 	}
-
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 }
