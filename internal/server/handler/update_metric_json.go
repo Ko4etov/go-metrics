@@ -61,6 +61,12 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(res).Encode(metric); err != nil {
+		http.Error(res, "Error encoding JSON", http.StatusInternalServerError)
+		return
+	}
 }
