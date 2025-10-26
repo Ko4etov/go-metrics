@@ -15,6 +15,8 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	body, readErr := io.ReadAll(req.Body)
 
+	defer req.Body.Close()
+
 	if readErr != nil {
         http.Error(res, "Error reading request body", http.StatusInternalServerError)
         return
