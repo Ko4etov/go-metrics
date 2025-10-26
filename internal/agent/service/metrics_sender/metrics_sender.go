@@ -30,7 +30,7 @@ func New(serverAddress string) *MetricsSenderService {
 // SendMetrics отправляет все метрики на сервер
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
     for _, metric := range metrics {
-        if err := s.SendMetric(metric); err != nil {
+        if err := s.SendMetricJSON(metric); err != nil {
             log.Printf("Error sending metric %s: %v", metric.ID, err)
         } else {
             log.Printf("Metric sent successfully: %s = %v", metric.ID, metric.Value)
@@ -64,7 +64,7 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
 
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
-    url := fmt.Sprintf("http://%s/update", s.ServerAddress)
+    url := fmt.Sprintf("http://%s/update/", s.ServerAddress)
     
     // Создаем клиент с настройками
     client := resty.New().
