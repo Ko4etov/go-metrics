@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -45,8 +44,11 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Возвращаем значение в текстовом виде
-	res.Header().Set("Content-Type", "text/plain")
+	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	fmt.Fprint(res, outputMetric)
+
+	if err := json.NewEncoder(res).Encode(outputMetric); err != nil {
+		http.Error(res, "Error encoding JSON", http.StatusInternalServerError)
+		return
+	}
 }
