@@ -3,11 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
@@ -17,6 +17,10 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 	}
 
 	body, readErr := io.ReadAll(req.Body)
+
+	logger.Logger.Infoln(
+		"body", body,
+	)
 
 	if readErr != nil {
         http.Error(res, "Error reading request body", http.StatusInternalServerError)
@@ -54,8 +58,6 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	log.Printf("metric = %v\n", metric)
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
