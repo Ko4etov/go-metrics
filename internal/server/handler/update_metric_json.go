@@ -39,6 +39,6 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	log.Printf("metric = %v\n", metric)
 
-
+	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 }
