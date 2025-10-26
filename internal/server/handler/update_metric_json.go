@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -15,9 +16,26 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Content-Type Not Allowed Must Be application/json", http.StatusBadRequest)
 	}
 
+	body, readErr := io.ReadAll(req.Body)
+
+	if readErr != nil {
+        http.Error(res, "Error reading request body", http.StatusInternalServerError)
+        return
+    }
+
+	if len(body) == 0 {
+        http.Error(res, "Empty request body", http.StatusBadRequest)
+        return
+    }
+
+    if !json.Valid(body) {
+        http.Error(res, "Invalid JSON format", http.StatusBadRequest)
+        return
+    }
+
 	var metric models.Metrics
 	
-	if err := json.NewDecoder(req.Body).Decode(&metric); err != nil {
+	if err := json.Unmarshal(body, &metric); err != nil {
 		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
 		return
 	}

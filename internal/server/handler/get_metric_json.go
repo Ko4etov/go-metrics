@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -12,9 +13,26 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Content-Type Not Allowed Must Be application/json", http.StatusBadRequest)
 	}
 
+	body, readErr := io.ReadAll(req.Body)
+
+	if readErr != nil {
+        http.Error(res, "Error reading request body", http.StatusInternalServerError)
+        return
+    }
+
+	if len(body) == 0 {
+        http.Error(res, "Empty request body", http.StatusBadRequest)
+        return
+    }
+
+    if !json.Valid(body) {
+        http.Error(res, "Invalid JSON format", http.StatusBadRequest)
+        return
+    }
+
 	var inputMetric models.Metrics
 	
-	if err := json.NewDecoder(req.Body).Decode(&inputMetric); err != nil {
+	if err := json.Unmarshal(body, &inputMetric); err != nil {
 		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
 		return
 	}
