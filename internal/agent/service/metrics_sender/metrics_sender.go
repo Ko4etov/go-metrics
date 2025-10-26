@@ -40,7 +40,7 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
-    url := s.BuildURL(metric)
+    url := fmt.Sprintf("http://%s/update", s.ServerAddress)
     
     // Создаем клиент с настройками
     client := resty.New().
@@ -48,7 +48,8 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
         SetRetryCount(2)
     
     resp, err := client.R().
-        SetHeader("Content-Type", "text/plain").
+        SetBody(metric).
+        SetHeader("Content-Type", "application/json").
         Post(url)
     
     if err != nil {
