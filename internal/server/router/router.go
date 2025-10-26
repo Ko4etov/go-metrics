@@ -23,7 +23,7 @@ func New() *chi.Mux {
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
 	r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
-	r.Get("/value/", metricHandler.GetMetricJSON)
+	r.Post("/value/", metricHandler.GetMetricJSON)
 	r.Get("/", metricHandler.GetMetrics)
 
 	return r;
