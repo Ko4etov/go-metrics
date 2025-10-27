@@ -18,8 +18,6 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	body, readErr := io.ReadAll(req.Body)
 
-	defer req.Body.Close()
-
 	logger.Logger.Infoln(
 		"body", body,
 	)

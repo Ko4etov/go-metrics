@@ -92,7 +92,6 @@ func compressResponseBody(res http.ResponseWriter, req *http.Request, data []byt
 	}
 
 	res.Header().Set("Content-Encoding", "gzip")
-	res.Header().Set("Vary", "Accept-Encoding")
 	res.Header().Del("Content-Length")
 
 	_, err := res.Write(compressedBuf.Bytes())

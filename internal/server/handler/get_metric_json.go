@@ -19,8 +19,6 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	defer req.Body.Close()
-
 	if len(body) == 0 {
         http.Error(res, "Empty request body", http.StatusBadRequest)
         return
