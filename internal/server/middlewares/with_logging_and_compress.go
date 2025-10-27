@@ -36,6 +36,10 @@ func (w *customResponseWriter) WriteHeader(statusCode int) {
 	w.responseData.status = statusCode
 }
 
+func (w *customResponseWriter) Header() http.Header {
+	return w.ResponseWriter.Header()
+}
+
 func shouldCompressRequest(req *http.Request) bool {
 	return req.Header.Get("Content-Encoding") == "gzip" &&
 		(req.Header.Get("Content-Type") == "application/json" || 
@@ -134,6 +138,13 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		if err := compressResponseBody(res, req, responseWriter.buffer.Bytes()); err != nil {
 			http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		// Копируем все заголовки из оригинального ответа
+		for key, values := range responseWriter.Header() {
+			for _, value := range values {
+				res.Header().Set(key, value)
+			}
 		}
 
 		// Логирование
