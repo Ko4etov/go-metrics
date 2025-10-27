@@ -13,14 +13,13 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Content-Type Not Allowed Must Be application/json", http.StatusBadRequest)
 	}
 
-	body, readErr := io.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "Error reading request body", http.StatusInternalServerError)
+		return
+	}
 
 	defer req.Body.Close()
-
-	if readErr != nil {
-        http.Error(res, "Error reading request body", http.StatusInternalServerError)
-        return
-    }
 
 	if len(body) == 0 {
         http.Error(res, "Empty request body", http.StatusBadRequest)
@@ -47,7 +46,6 @@ func (h *Handler) GetMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	// Получаем метрику из хранилища
 	var outputMetric *models.Metrics
-	var err error
 
 	switch inputMetric.MType {
 		case "gauge":

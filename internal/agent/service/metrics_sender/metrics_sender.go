@@ -1,6 +1,9 @@
 package metricssender
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -65,6 +68,21 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
 // sendMetric отправляет одну метрику на сервер
 func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
     url := fmt.Sprintf("http://%s/update/", s.ServerAddress)
+
+    jsonMetric, err := json.Marshal(metric)
+    if err != nil {
+        return err
+    }
+    var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	defer gz.Close()
+
+	if _, err := gz.Write(jsonMetric); err != nil {
+		return err
+	}
+	if err := gz.Close(); err != nil {
+		return err
+	}
     
     // Создаем клиент с настройками
     client := resty.New().
@@ -72,8 +90,11 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
         SetRetryCount(2)
     
     resp, err := client.R().
-        SetBody(metric).
+        SetBody(buf.Bytes()).
         SetHeader("Content-Type", "application/json").
+        SetHeader("Content-Encoding", "gzip").
+        SetHeader("Accept-Encoding", "gzip").
+        SetHeader("Content-Length", strconv.Itoa(buf.Len())).
         Post(url)
     
     if err != nil {

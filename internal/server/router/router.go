@@ -17,7 +17,7 @@ func New() *chi.Mux {
 
 	// Добавляем полезные middleware
 	r.Use(middleware.Logger) // Логирование всех запросов
-	r.Use(middlewares.WithLogging)
+	r.Use(middlewares.WithLoggingAndCompress)
 
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
