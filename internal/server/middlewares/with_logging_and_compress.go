@@ -103,6 +103,12 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		start := time.Now()
 
+		logger.Logger.Infoln(
+            "content-encoding", req.Header.Get("Content-Encoding"),
+            "content-type", req.Header.Get("Content-Type"),
+            "content-length", req.Header.Get("Content-Length"),
+        )
+
 		// Декомпрессия входящего запроса
 		if err := decompressRequestBody(req); err != nil {
 			http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
