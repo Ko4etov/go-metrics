@@ -5,7 +5,6 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 func New() *chi.Mux {
@@ -16,7 +15,7 @@ func New() *chi.Mux {
 	r := chi.NewRouter()
 
 	// Добавляем полезные middleware
-	r.Use(middleware.Logger) // Логирование всех запросов
+	// r.Use(middleware.Logger) // Логирование всех запросов
 	r.Use(middlewares.WithLoggingAndCompress)
 
 	// Объявляем маршруты
