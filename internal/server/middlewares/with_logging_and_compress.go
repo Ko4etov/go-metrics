@@ -136,12 +136,19 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 			}
 		}
 
+		if !shouldCompressResponse(req) {
+			res.Header().Set("Content-Length", strconv.Itoa(len(resBody)))
+			if _, err := res.Write(resBody); err != nil {
+				http.Error(res, "Write body: "+err.Error(), http.StatusInternalServerError)
+			}
+		}
+		
 		headers := res.Header()
 
 		// Копируем все заголовки из оригинального ответа
 		for key, values := range headers {
 			for _, value := range values {
-				res.Header().Add(key, value)
+				res.Header().Set(key, value)
 			}
 		}
 
