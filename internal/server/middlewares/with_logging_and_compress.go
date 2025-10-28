@@ -130,6 +130,8 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		resBody := responseWriter.buffer.Bytes()
 
 		logger.Logger.Infoln(
+			"acceptEncoding", req.Header.Get("Accept-Encoding"),
+			"contentType", req.Header.Get("Content-Type"),
 			"shouldCompressResponse", shouldCompressResponse(req),
         )
 
