@@ -76,12 +76,6 @@ func decompressRequestBody(req *http.Request) error {
 
 // compressResponseBody компрессирует тело ответа если нужно
 func compressResponseBody(res http.ResponseWriter, req *http.Request, data []byte) error {
-	if !shouldCompressResponse(req) || len(data) == 0 {
-		res.Header().Set("Content-Length", strconv.Itoa(len(data)))
-		_, err := res.Write(data)
-		return err
-	}
-
 	var compressedBuf bytes.Buffer
 	gzWriter := gzip.NewWriter(&compressedBuf)
 
