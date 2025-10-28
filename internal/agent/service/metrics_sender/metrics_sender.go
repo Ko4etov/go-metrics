@@ -93,7 +93,7 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
         SetBody(buf.Bytes()).
         SetHeader("Content-Type", "application/json").
         SetHeader("Content-Encoding", "gzip").
-        // SetHeader("Accept-Encoding", "gzip").
+        SetHeader("Accept-Encoding", "gzip").
         SetHeader("Content-Length", strconv.Itoa(buf.Len())).
         Post(url)
     
