@@ -140,8 +140,10 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 			return
 		}
 
+		headers := res.Header()
+
 		// Копируем все заголовки из оригинального ответа
-		for key, values := range responseWriter.Header() {
+		for key, values := range headers {
 			for _, value := range values {
 				res.Header().Set(key, value)
 			}
@@ -155,6 +157,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 			"duration", duration,
 			"status", responseData.status,
 			"size", responseData.size,
+			"origin_header", headers,
 		)
 	})
 }
