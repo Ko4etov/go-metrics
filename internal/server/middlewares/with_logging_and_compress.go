@@ -75,7 +75,7 @@ func decompressRequestBody(req *http.Request) error {
 }
 
 // compressResponseBody компрессирует тело ответа если нужно
-func compressResponseBody(res http.ResponseWriter, req *http.Request, data []byte) error {
+func compressResponseBody(res http.ResponseWriter, data []byte) error {
 	var compressedBuf bytes.Buffer
 	gzWriter := gzip.NewWriter(&compressedBuf)
 
@@ -130,7 +130,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 
 		// Компрессия исходящего ответа
 		if shouldCompressResponse(req) || len(resBody) != 0 {
-			if err := compressResponseBody(res, req, resBody); err != nil {
+			if err := compressResponseBody(res, resBody); err != nil {
 				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
