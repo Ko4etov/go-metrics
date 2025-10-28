@@ -129,6 +129,10 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 
 		resBody := responseWriter.buffer.Bytes()
 
+		logger.Logger.Infoln(
+			"shouldCompressResponse", shouldCompressResponse(req),
+        )
+
 		// Компрессия исходящего ответа
 		if shouldCompressResponse(req) {
 			if err := compressResponseBody(res, resBody); err != nil {
