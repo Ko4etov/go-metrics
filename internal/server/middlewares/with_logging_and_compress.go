@@ -56,10 +56,6 @@ func shouldCompressResponse(req *http.Request) bool {
 
 // decompressRequestBody декомпрессирует тело запроса если нужно
 func decompressRequestBody(req *http.Request) error {
-	if !shouldCompressRequest(req) {
-		return nil
-	}
-
 	gzReader, err := gzip.NewReader(req.Body)
 	if err != nil {
 		return err
@@ -118,9 +114,11 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
         )
 
 		// Декомпрессия входящего запроса
-		if err := decompressRequestBody(req); err != nil {
-			http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
-			return
+		if shouldCompressRequest(req) {
+			if err := decompressRequestBody(req); err != nil {
+				http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 
 		// Подготовка для перехвата ответа
@@ -134,10 +132,19 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		// Вызов следующего обработчика
 		next.ServeHTTP(responseWriter, req)
 
+		resBody := responseWriter.buffer.Bytes()
+
 		// Компрессия исходящего ответа
-		if err := compressResponseBody(res, req, responseWriter.buffer.Bytes()); err != nil {
-			http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
-			return
+		if shouldCompressResponse(req) || len(resBody) != 0 {
+			if err := compressResponseBody(res, req, resBody); err != nil {
+				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			res.Header().Set("Content-Length", strconv.Itoa(len(resBody)))
+			if _, err := res.Write(resBody); err != nil {
+				http.Error(res, "Write body: "+err.Error(), http.StatusInternalServerError)
+			}
+			
 		}
 
 		headers := res.Header()
