@@ -40,7 +40,7 @@ func (w *customResponseWriter) Header() http.Header {
 	return w.ResponseWriter.Header()
 }
 
-func shouldCompressRequest(req *http.Request) bool {
+func shouldDecompressRequest(req *http.Request) bool {
 	return req.Header.Get("Content-Encoding") == "gzip" &&
 		(req.Header.Get("Content-Type") == "application/json" || 
 		 req.Header.Get("Content-Type") == "text/html")
@@ -105,10 +105,11 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
             "content-encoding", req.Header.Get("Content-Encoding"),
             "content-type", req.Header.Get("Content-Type"),
             "content-length", req.Header.Get("Content-Length"),
+			"shouldDecompressRequest", shouldDecompressRequest(req),
         )
 
 		// Декомпрессия входящего запроса
-		if shouldCompressRequest(req) {
+		if shouldDecompressRequest(req) {
 			if err := decompressRequestBody(req); err != nil {
 				http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
 				return
@@ -142,7 +143,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 				http.Error(res, "Write body: "+err.Error(), http.StatusInternalServerError)
 			}
 		}
-		
+
 		headers := res.Header()
 
 		// Копируем все заголовки из оригинального ответа
