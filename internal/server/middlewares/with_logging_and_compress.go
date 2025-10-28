@@ -102,6 +102,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		start := time.Now()
 
 		logger.Logger.Infoln(
+			"acceptEncoding", req.Header.Get("Accept-Encoding"),
             "content-encoding", req.Header.Get("Content-Encoding"),
             "content-type", req.Header.Get("Content-Type"),
             "content-length", req.Header.Get("Content-Length"),
