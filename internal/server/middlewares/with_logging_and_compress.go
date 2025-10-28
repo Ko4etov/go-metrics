@@ -102,10 +102,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		start := time.Now()
 
 		logger.Logger.Infoln(
-			"acceptEncoding", req.Header.Get("Accept-Encoding"),
-            "content-encoding", req.Header.Get("Content-Encoding"),
-            "content-type", req.Header.Get("Content-Type"),
-            "content-length", req.Header.Get("Content-Length"),
+			"headers", req.Header,
 			"shouldDecompressRequest", shouldDecompressRequest(req),
         )
 
@@ -131,8 +128,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		resBody := responseWriter.buffer.Bytes()
 
 		logger.Logger.Infoln(
-			"acceptEncoding", req.Header.Get("Accept-Encoding"),
-			"contentType", req.Header.Get("Content-Type"),
+			"headers", req.Header,
 			"shouldCompressResponse", shouldCompressResponse(req),
         )
 
