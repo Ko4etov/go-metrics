@@ -129,16 +129,11 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		resBody := responseWriter.buffer.Bytes()
 
 		// Компрессия исходящего ответа
-		if shouldCompressResponse(req) || len(resBody) != 0 {
+		if shouldCompressResponse(req) {
 			if err := compressResponseBody(res, resBody); err != nil {
 				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			res.Header().Set("Content-Length", strconv.Itoa(len(resBody)))
-			if _, err := res.Write(resBody); err != nil {
-				http.Error(res, "Write body: "+err.Error(), http.StatusInternalServerError)
-			}
-			
 		}
 
 		headers := res.Header()
@@ -146,7 +141,7 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 		// Копируем все заголовки из оригинального ответа
 		for key, values := range headers {
 			for _, value := range values {
-				res.Header().Set(key, value)
+				res.Header().Add(key, value)
 			}
 		}
 
