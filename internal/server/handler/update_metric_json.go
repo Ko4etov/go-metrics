@@ -14,6 +14,7 @@ func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "Content-Type Not Allowed Must Be application/json", http.StatusBadRequest)
+		return
 	}
 
 	body, readErr := io.ReadAll(req.Body)

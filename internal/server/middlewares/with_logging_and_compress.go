@@ -46,12 +46,11 @@ func shouldDecompressRequest(req *http.Request) bool {
 		 req.Header.Get("Content-Type") == "text/html")
 }
 
-func shouldCompressResponse(req *http.Request) bool {
-	acceptEncoding := req.Header.Get("Accept-Encoding")
-	contentType := req.Header.Get("Content-Type")
-	
-	return strings.Contains(acceptEncoding, "gzip") &&
-		(contentType == "application/json" || contentType == "text/html")
+func shouldCompressResponse(req *http.Request, responseContentType string) bool {
+    acceptEncoding := req.Header.Get("Accept-Encoding")
+    
+    return strings.Contains(acceptEncoding, "gzip") &&
+        (responseContentType == "application/json" || responseContentType == "text/html")
 }
 
 // decompressRequestBody декомпрессирует тело запроса если нужно
@@ -76,24 +75,25 @@ func decompressRequestBody(req *http.Request) error {
 
 // compressResponseBody компрессирует тело ответа если нужно
 func compressResponseBody(res http.ResponseWriter, data []byte) error {
-	var compressedBuf bytes.Buffer
-	gzWriter := gzip.NewWriter(&compressedBuf)
+    var compressedBuf bytes.Buffer
+    gzWriter := gzip.NewWriter(&compressedBuf)
 
-	if _, err := gzWriter.Write(data); err != nil {
-		return err
-	}
+    if _, err := gzWriter.Write(data); err != nil {
+        return err
+    }
 
-	if err := gzWriter.Close(); err != nil {
-		return err
-	}
+    if err := gzWriter.Close(); err != nil {
+        return err
+    }
 
-	compressedData := compressedBuf.Bytes()
-	res.Header().Set("Content-Length", strconv.Itoa(len(compressedData)))
-	res.Header().Set("Content-Encoding", "gzip")
-	res.Header().Del("Content-Length")
+    compressedData := compressedBuf.Bytes()
+    
+    res.Header().Set("Content-Encoding", "gzip")
+    res.Header().Set("Vary", "Accept-Encoding")
+    res.Header().Set("Content-Length", strconv.Itoa(len(compressedData)))
 
-	_, err := res.Write(compressedBuf.Bytes())
-	return err
+    _, err := res.Write(compressedData)
+    return err
 }
 
 // WithLoggingAndCompress middleware для логирования и компрессии
@@ -127,23 +127,26 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 
 		resBody := responseWriter.buffer.Bytes()
 
+		responseContentType := responseWriter.Header().Get("Content-Type")
+
 		logger.Logger.Infoln(
 			"headers", req.Header,
-			"shouldCompressResponse", shouldCompressResponse(req),
+			"shouldCompressResponse", shouldCompressResponse(req, responseContentType),
         )
 
 		// Компрессия исходящего ответа
-		if shouldCompressResponse(req) {
+		if shouldCompressResponse(req, responseContentType) {
 			if err := compressResponseBody(res, resBody); err != nil {
 				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
 
-		if !shouldCompressResponse(req) {
+		if !shouldCompressResponse(req, responseContentType) {
 			res.Header().Set("Content-Length", strconv.Itoa(len(resBody)))
 			if _, err := res.Write(resBody); err != nil {
 				http.Error(res, "Write body: "+err.Error(), http.StatusInternalServerError)
+				return
 			}
 		}
 
