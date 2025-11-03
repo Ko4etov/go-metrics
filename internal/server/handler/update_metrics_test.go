@@ -12,7 +12,12 @@ import (
 )
 
 func TestUpdateMetric(t *testing.T) {
-	storage := storage.New()
+	storageConfig := &storage.MetricsStorageConfig{
+		RestoreMetrics: false,
+		StoreMetricsInterval: 100,
+		FileStorageMetricsPath: "metrics.json",
+	}
+	storage := storage.New(storageConfig)
 	metricHandler := New(storage)
 	storage.ResetAll()
 

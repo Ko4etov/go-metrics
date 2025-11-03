@@ -7,9 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func New() *chi.Mux {
-	metricsStorage := storage.New()
-	
+func New(metricsStorage *storage.MetricsStorage) *chi.Mux {
 	metricHandler := handler.New(metricsStorage)
 
 	r := chi.NewRouter()

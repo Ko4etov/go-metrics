@@ -1,23 +1,163 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MetricsStorage struct {
-	metrics map[string]models.Metrics
-	mu *sync.Mutex
+	metrics    map[string]models.Metrics
+	mu         *sync.Mutex
+	config     *MetricsStorageConfig
+	saveTicker *time.Ticker
+	done       chan bool
 }
 
-func New() *MetricsStorage {
-	return &MetricsStorage{
+type MetricsStorageConfig struct {
+	RestoreMetrics         bool
+	StoreMetricsInterval   int
+	FileStorageMetricsPath string
+}
+
+func New(config *MetricsStorageConfig) *MetricsStorage {
+	storage := &MetricsStorage{
 		metrics: make(map[string]models.Metrics),
-		mu: &sync.Mutex{},
+		mu:      &sync.Mutex{},
+		config:  config,
+		done:    make(chan bool),
 	}
+
+	// Загрузка метрик при старте если нужно
+	if config.RestoreMetrics && config.FileStorageMetricsPath != "" {
+		if err := storage.LoadFromFile(); err != nil {
+			fmt.Printf("Warning: failed to load metrics from file: %v\n", err)
+		} else {
+			fmt.Printf("Successfully loaded metrics from %s\n", config.FileStorageMetricsPath)
+		}
+	}
+
+	if config.StoreMetricsInterval > 0 {
+		storage.startPeriodicSave()
+	}
+
+	return storage
+}
+
+func (ms *MetricsStorage) startPeriodicSave() {
+	interval := time.Duration(ms.config.StoreMetricsInterval) * time.Second
+	ms.saveTicker = time.NewTicker(interval)
+
+	go func() {
+		for {
+			select {
+			case <-ms.saveTicker.C:
+				if err := ms.SaveToFile(); err != nil {
+					fmt.Printf("Error saving metrics to file: %v\n", err)
+				} else {
+					fmt.Printf("Metrics automatically saved to %s\n", ms.config.FileStorageMetricsPath)
+				}
+			case <-ms.done:
+				return
+			}
+		}
+	}()
+}
+
+func (ms *MetricsStorage) SaveToFile() error {
+	if ms.config.FileStorageMetricsPath == "" {
+		return nil
+	}
+
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	// Создаем директорию если нужно
+	dir := filepath.Dir(ms.config.FileStorageMetricsPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Конвертируем метрики в срез для JSON
+	metricsSlice := make([]models.Metrics, 0, len(ms.metrics))
+	for _, metric := range ms.metrics {
+		metricsSlice = append(metricsSlice, metric)
+	}
+
+	// Сериализуем в JSON
+	data, err := json.MarshalIndent(metricsSlice, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metrics: %w", err)
+	}
+
+	// Записываем в файл
+	if err := os.WriteFile(ms.config.FileStorageMetricsPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func (ms *MetricsStorage) Stop() {
+	if ms.saveTicker != nil {
+		ms.saveTicker.Stop()
+		close(ms.done)
+	}
+	
+	// Финальное сохранение при остановке
+	if ms.config.FileStorageMetricsPath != "" {
+		if err := ms.SaveToFile(); err != nil {
+			fmt.Printf("Error saving metrics on shutdown: %v\n", err)
+		} else {
+			fmt.Printf("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
+		}
+	}
+}
+
+func (ms *MetricsStorage) SyncSave() error {
+	if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
+		return ms.SaveToFile()
+	}
+	return nil
+}
+
+func (ms *MetricsStorage) LoadFromFile() error {
+	if ms.config.FileStorageMetricsPath == "" {
+		return errors.New("file storage path not specified")
+	}
+
+	// Проверяем существует ли файл
+	if _, err := os.Stat(ms.config.FileStorageMetricsPath); os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %s", ms.config.FileStorageMetricsPath)
+	}
+
+	// Читаем файл
+	data, err := os.ReadFile(ms.config.FileStorageMetricsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Декодируем JSON
+	var metricsSlice []models.Metrics
+	if err := json.Unmarshal(data, &metricsSlice); err != nil {
+		return fmt.Errorf("failed to unmarshal metrics: %w", err)
+	}
+
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	// Загружаем метрики в хранилище
+	for _, metric := range metricsSlice {
+		ms.metrics[metric.ID] = metric
+	}
+
+	return nil
 }
 
 func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
@@ -27,28 +167,32 @@ func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
 func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	
+
 	switch metric.MType {
-		case models.Gauge:
-			if metric.Value == nil {
-				return ErrInvalidValue
-			}
-			ms.metrics[metric.ID] = metric
+	case models.Gauge:
+		if metric.Value == nil {
+			return ErrInvalidValue
+		}
+		ms.metrics[metric.ID] = metric
 
-		case models.Counter:
-			if metric.Delta == nil {
-				return ErrInvalidDelta
-			}
+	case models.Counter:
+		if metric.Delta == nil {
+			return ErrInvalidDelta
+		}
 
-			// Для counter добавляем значение к существующему
-			if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
-				newDelta := *existing.Delta + *metric.Delta
-				metric.Delta = &newDelta
-			}
-			ms.metrics[metric.ID] = metric
+		// Для counter добавляем значение к существующему
+		if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
+			newDelta := *existing.Delta + *metric.Delta
+			metric.Delta = &newDelta
+		}
+		ms.metrics[metric.ID] = metric
 
-		default:
-			return ErrInvalidType
+	default:
+		return ErrInvalidType
+	}
+
+	if ms.config.StoreMetricsInterval == 0 {
+		return ms.SyncSave()
 	}
 
 	return nil
