@@ -49,6 +49,6 @@ func pollIntervalParameter() {
 	}
 
 	if result, err := strconv.ParseInt(pollIntervalEnv, 0, 64); err == nil {
-		reportInterval = int(result)
+		pollInterval = int(result)
 	}
 }

@@ -5,19 +5,16 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
-func New() *chi.Mux {
-	metricsStorage := storage.New()
-	
+func New(metricsStorage *storage.MetricsStorage) *chi.Mux {
 	metricHandler := handler.New(metricsStorage)
 
 	r := chi.NewRouter()
 
 	// Добавляем полезные middleware
-	r.Use(middleware.Logger) // Логирование всех запросов
-	r.Use(middlewares.WithLogging)
+	// r.Use(middleware.Logger) // Логирование всех запросов
+	r.Use(middlewares.WithLoggingAndCompress)
 
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)

@@ -2,6 +2,9 @@ package config
 
 type ServerConfig struct {
 	ServerAddress string
+	StoreMetricsInterval int
+	FileStorageMetricsPath string
+	RestoreMetrics bool
 }
 
 func New() *ServerConfig {
@@ -9,5 +12,8 @@ func New() *ServerConfig {
 
 	return &ServerConfig{
 		ServerAddress: address,
+		StoreMetricsInterval: storeMetricsInterval,
+		FileStorageMetricsPath: fileStorageMetricsPath,
+		RestoreMetrics: restoreMetrics,
 	}
 }

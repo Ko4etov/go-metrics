@@ -8,5 +8,5 @@ import (
 func main() {
 	config := config.New()
 
-	server.New(config.ServerAddress).Run()
+	server.New(config).Run()
 }
