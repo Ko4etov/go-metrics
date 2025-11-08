@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -17,16 +16,18 @@ import (
 // Sender отправляет метрики на сервер
 type MetricsSenderService struct {
     ServerAddress string
-    Client        *http.Client
+    Client        *resty.Client
 }
 
 // NewSender создает новый отправитель
 func New(serverAddress string) *MetricsSenderService {
+    client := resty.New().
+        SetTimeout(5 * time.Second).
+        SetRetryCount(2)
+
     return &MetricsSenderService{
         ServerAddress: serverAddress,
-        Client: &http.Client{
-            Timeout: 10 * time.Second,
-        },
+        Client: client,
     }
 }
 
@@ -45,12 +46,7 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
     url := s.BuildURL(metric)
 
-    // Создаем клиент с настройками
-    client := resty.New().
-        SetTimeout(5 * time.Second).
-        SetRetryCount(2)
-
-    resp, err := client.R().
+    resp, err := s.Client.R().
         SetHeader("Content-Type", "text/plain").
         Post(url)
     
@@ -84,12 +80,7 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		return err
 	}
     
-    // Создаем клиент с настройками
-    client := resty.New().
-        SetTimeout(5 * time.Second).
-        SetRetryCount(2)
-    
-    resp, err := client.R().
+    resp, err := s.Client.R().
         SetBody(buf.Bytes()).
         SetHeader("Content-Type", "application/json").
         SetHeader("Content-Encoding", "gzip").

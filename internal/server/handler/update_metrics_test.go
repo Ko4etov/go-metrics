@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Ko4etov/go-metrics/internal/server/config/db"
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
@@ -18,7 +19,8 @@ func TestUpdateMetric(t *testing.T) {
 		FileStorageMetricsPath: "metrics.json",
 	}
 	storage := storage.New(storageConfig)
-	metricHandler := New(storage)
+	poll := db.NewDbConnection("3456")
+	metricHandler := New(storage, poll)
 	storage.ResetAll()
 
 	tests := []struct {

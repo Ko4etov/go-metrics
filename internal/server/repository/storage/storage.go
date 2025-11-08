@@ -43,14 +43,10 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 		}
 	}
 
-	if config.StoreMetricsInterval > 0 {
-		storage.startPeriodicSave()
-	}
-
 	return storage
 }
 
-func (ms *MetricsStorage) startPeriodicSave() {
+func (ms *MetricsStorage) StartPeriodicSave() {
 	interval := time.Duration(ms.config.StoreMetricsInterval) * time.Second
 	ms.saveTicker = time.NewTicker(interval)
 
@@ -104,7 +100,7 @@ func (ms *MetricsStorage) SaveToFile() error {
 	return nil
 }
 
-func (ms *MetricsStorage) Stop() {
+func (ms *MetricsStorage) StopPeriodicSave() {
 	if ms.saveTicker != nil {
 		ms.saveTicker.Stop()
 		close(ms.done)
