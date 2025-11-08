@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewDbConnection(address string) *pgxpool.Pool {
+func NewDBConnection(address string) *pgxpool.Pool {
 	pool, err := pgxpool.New(
 		context.Background(), 
 		fmt.Sprintf("user=%s port=%s dbname=%s host=%s password=%s", "metrics", address, "metrics", "localhost", "v8Te8krwy4uIDBF7"))

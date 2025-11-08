@@ -17,7 +17,7 @@ type ServerParameters struct {
 	StoreMetricsInterval int
 	FileStorageMetricsPath string
 	RestoreMetrics bool
-	DbAddress string
+	DBAddress string
 }
 
 func parseServerParameters() *ServerParameters {
@@ -34,7 +34,7 @@ func parseServerParameters() *ServerParameters {
 		StoreMetricsInterval: storeMetricsInterval,
 		FileStorageMetricsPath: fileStorageMetricsPath,
 		RestoreMetrics: restoreMetrics,
-		DbAddress: dbAddress,
+		DBAddress: dbAddress,
 	}
 }
 

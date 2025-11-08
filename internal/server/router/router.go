@@ -22,7 +22,7 @@ func New(metricsStorage *storage.MetricsStorage, pgx *pgxpool.Pool) *chi.Mux {
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
 	r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 	r.Post("/value/", metricHandler.GetMetricJSON)
-	r.Get("/ping", metricHandler.DbPing)
+	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
 	return r;

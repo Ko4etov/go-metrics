@@ -19,7 +19,7 @@ func TestUpdateMetric(t *testing.T) {
 		FileStorageMetricsPath: "metrics.json",
 	}
 	storage := storage.New(storageConfig)
-	poll := db.NewDbConnection("3456")
+	poll := db.NewDBConnection("3456")
 	metricHandler := New(storage, poll)
 	storage.ResetAll()
 

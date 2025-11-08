@@ -16,7 +16,7 @@ type ServerConfig struct {
 func New() *ServerConfig {
 	parseServerParameters()
 
-	poll := db.NewDbConnection(dbAddress)
+	poll := db.NewDBConnection(dbAddress)
 
 	return &ServerConfig{
 		ServerAddress: address,
