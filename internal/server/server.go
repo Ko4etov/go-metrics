@@ -26,8 +26,13 @@ func (s *Server) Run() {
 		FileStorageMetricsPath: s.config.FileStorageMetricsPath,
 	}
 	metricsStorage := storage.New(storageConfig)
-	serverRouter := router.New(metricsStorage)
-	defer metricsStorage.Stop()
+	serverRouter := router.New(metricsStorage, s.config.ConnectionPoll)
+
+	if s.config.StoreMetricsInterval > 0 {
+		metricsStorage.StartPeriodicSave()
+		defer metricsStorage.StopPeriodicSave()
+	}
+
 
 	if err := logger.Initialize("info"); err != nil {
         panic(err)
