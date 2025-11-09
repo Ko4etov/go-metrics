@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type MetricsStorage struct {
@@ -24,6 +27,7 @@ type MetricsStorageConfig struct {
 	RestoreMetrics         bool
 	StoreMetricsInterval   int
 	FileStorageMetricsPath string
+	ConnectionPoll         *pgxpool.Pool
 }
 
 func New(config *MetricsStorageConfig) *MetricsStorage {
@@ -35,15 +39,63 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 	}
 
 	// Загрузка метрик при старте если нужно
-	if config.RestoreMetrics && config.FileStorageMetricsPath != "" {
-		if err := storage.LoadFromFile(); err != nil {
-			fmt.Printf("Warning: failed to load metrics from file: %v\n", err)
-		} else {
-			fmt.Printf("Successfully loaded metrics from %s\n", config.FileStorageMetricsPath)
+	if config.RestoreMetrics {
+		if config.ConnectionPoll != nil {
+			if err := storage.LoadFromDatabase(); err != nil {
+				logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
+			} else {
+				logger.Logger.Infof("Successfully loaded metrics from database")
+			}
+		} else if config.RestoreMetrics && config.FileStorageMetricsPath != ""  {
+			if err := storage.LoadFromFile(); err != nil {
+				logger.Logger.Infof("Warning: failed to load metrics from file: %v\n", err)
+			} else {
+				logger.Logger.Infof("Successfully loaded metrics from %s\n", config.FileStorageMetricsPath)
+			}
 		}
 	}
 
 	return storage
+}
+
+func (ms *MetricsStorage) LoadSavedMetrics() {
+	if ms.config.ConnectionPoll != nil {
+		if err := ms.LoadFromDatabase(); err != nil {
+			logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
+		} else {
+			logger.Logger.Infof("Successfully loaded metrics from database")
+		}
+	} else if ms.config.FileStorageMetricsPath != ""  {
+		if err := ms.LoadFromFile(); err != nil {
+			logger.Logger.Infof("Warning: failed to load metrics from file: %v\n", err)
+		} else {
+			logger.Logger.Infof("Successfully loaded metrics from %s\n", ms.config.FileStorageMetricsPath)
+		}
+	}
+}
+
+func (ms *MetricsStorage) LoadFromDatabase() error {
+	ctx := context.Background()
+	rows, err := ms.config.ConnectionPoll.Query(ctx, 
+		"SELECT id, type, delta, value, hash FROM metrics")
+	if err != nil {
+		return fmt.Errorf("failed to query metrics: %w", err)
+	}
+	defer rows.Close()
+
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	for rows.Next() {
+		var metric models.Metrics
+		err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value, &metric.Hash)
+		if err != nil {
+			return fmt.Errorf("failed to scan metric: %w", err)
+		}
+		ms.metrics[metric.ID] = metric
+	}
+
+	return rows.Err()
 }
 
 func (ms *MetricsStorage) StartPeriodicSave() {
@@ -67,9 +119,6 @@ func (ms *MetricsStorage) StartPeriodicSave() {
 }
 
 func (ms *MetricsStorage) SaveToFile() error {
-	if ms.config.FileStorageMetricsPath == "" {
-		return nil
-	}
 
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -187,11 +236,33 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 		return ErrInvalidType
 	}
 
-	if ms.config.StoreMetricsInterval == 0 {
-		return ms.SyncSave()
+	if ms.config.ConnectionPoll != nil {
+		if err := ms.saveMetricToDatabase(metric); err != nil {
+			return fmt.Errorf("failed to save metric to database: %w", err)
+		}
+	} else if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
+		// Или сохраняем в файл если нет БД
+		return ms.SaveToFile()
 	}
 
 	return nil
+}
+
+func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
+	ctx := context.Background()
+	
+	_, err := ms.config.ConnectionPoll.Exec(ctx,
+		`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
+		 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+		 ON CONFLICT (id, type) 
+		 DO UPDATE SET 
+		   delta = EXCLUDED.delta,
+		   value = EXCLUDED.value,
+		   hash = EXCLUDED.hash,
+		   updated_at = CURRENT_TIMESTAMP`,
+		metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
+	
+	return err
 }
 
 func (ms *MetricsStorage) Metric(id string) (models.Metrics, bool) {

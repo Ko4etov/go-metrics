@@ -23,6 +23,7 @@ func (s *Server) Run() {
 		RestoreMetrics: s.config.RestoreMetrics,
 		StoreMetricsInterval: s.config.StoreMetricsInterval,
 		FileStorageMetricsPath: s.config.FileStorageMetricsPath,
+		ConnectionPoll: s.config.ConnectionPoll,
 	}
 	metricsStorage := storage.New(storageConfig)
 	serverRouter := router.New(metricsStorage, s.config.ConnectionPoll)

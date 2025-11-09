@@ -27,6 +27,12 @@ func New() *ServerConfig {
 		poll = db.NewDBConnection(dbAddress)
 	}
 
+	if poll != nil {
+		if err := db.RunMigrations(poll); err != nil {
+			panic(err)
+		}
+	}
+
 
 	return &ServerConfig{
 		ServerAddress: address,
