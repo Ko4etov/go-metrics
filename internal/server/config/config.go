@@ -23,8 +23,10 @@ func New() *ServerConfig {
 
 	parseServerParameters()
 
-	if _, err := pgxpool.ParseConfig(dbAddress); err == nil {
-		poll = db.NewDBConnection(dbAddress)
+	if address != "" {
+		if _, err := pgxpool.ParseConfig(dbAddress); err == nil {
+			poll = db.NewDBConnection(dbAddress)
+		}
 	}
 
 	if poll != nil {
