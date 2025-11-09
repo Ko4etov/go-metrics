@@ -2,8 +2,11 @@ package config
 
 import (
 	"flag"
+	"log"
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 var address string = ":8080"
@@ -21,6 +24,11 @@ type ServerParameters struct {
 }
 
 func parseServerParameters() *ServerParameters {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+	
 	addressParameter()
 	storeMetricsIntervalParameter()
 	fileStorageMetricsPathParameter()
