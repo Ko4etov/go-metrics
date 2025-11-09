@@ -4,13 +4,16 @@ import (
 	"flag"
 	"os"
 	"strconv"
+
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
+	"github.com/joho/godotenv"
 )
 
 var address string = ":8080"
 var storeMetricsInterval int = 300
 var fileStorageMetricsPath string = "metrics.json"
 var restoreMetrics bool = true
-var dbAddress string = "5432"
+var dbAddress string
 
 type ServerParameters struct {
 	Address string
@@ -21,6 +24,11 @@ type ServerParameters struct {
 }
 
 func parseServerParameters() *ServerParameters {
+	err := godotenv.Load()
+	if err != nil {
+		logger.Logger.Infof("Error loading .env file: %v", err)
+	}
+	
 	addressParameter()
 	storeMetricsIntervalParameter()
 	fileStorageMetricsPathParameter()
@@ -28,6 +36,8 @@ func parseServerParameters() *ServerParameters {
 	dbAddressParameter()
 
 	flag.Parse()
+
+	logger.Logger.Infof("address=%v, storeMetricsInterval=%v, fileStorageMetricsPath=%v, restoreMetrics=%v, dbAddress=%v", address, storeMetricsInterval, fileStorageMetricsPath, restoreMetrics, dbAddress)
 
 	return &ServerParameters{
 		Address: address,

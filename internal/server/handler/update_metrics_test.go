@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Ko4etov/go-metrics/internal/server/config/db"
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestUpdateMetric(t *testing.T) {
@@ -19,7 +19,7 @@ func TestUpdateMetric(t *testing.T) {
 		FileStorageMetricsPath: "metrics.json",
 	}
 	storage := storage.New(storageConfig)
-	poll := db.NewDBConnection("3456")
+	var poll *pgxpool.Pool
 	metricHandler := New(storage, poll)
 	storage.ResetAll()
 
