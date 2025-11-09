@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/Ko4etov/go-metrics/internal/server/config/db"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,9 +15,18 @@ type ServerConfig struct {
 }
 
 func New() *ServerConfig {
+	var poll *pgxpool.Pool
+
+	if err := logger.Initialize("info"); err != nil {
+        panic(err)
+    }
+
 	parseServerParameters()
 
-	poll := db.NewDBConnection(dbAddress)
+	if _, err := pgxpool.ParseConfig(dbAddress); err != nil {
+		poll = db.NewDBConnection(dbAddress)
+	}
+
 
 	return &ServerConfig{
 		ServerAddress: address,

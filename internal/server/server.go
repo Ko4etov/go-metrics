@@ -6,7 +6,6 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/config"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/router"
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 type Server struct {
@@ -32,11 +31,6 @@ func (s *Server) Run() {
 		metricsStorage.StartPeriodicSave()
 		defer metricsStorage.StopPeriodicSave()
 	}
-
-
-	if err := logger.Initialize("info"); err != nil {
-        panic(err)
-    }
 
 	// Запускаем сервер
 	err := http.ListenAndServe(s.config.ServerAddress, serverRouter)
