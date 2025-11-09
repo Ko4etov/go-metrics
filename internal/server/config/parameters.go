@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -23,9 +24,9 @@ type ServerParameters struct {
 }
 
 func parseServerParameters() *ServerParameters {
-	err := godotenv.Load("/config/.env")
+	err := godotenv.Load()
 	if err != nil {
-		// log.Fatalf("Error loading .env file: %v", err)
+		logger.Logger.Infof("Error loading .env file: %v", err)
 	}
 	
 	addressParameter()
