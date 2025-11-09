@@ -37,6 +37,8 @@ func parseServerParameters() *ServerParameters {
 
 	flag.Parse()
 
+	logger.Logger.Infof("address=%v, storeMetricsInterval=%v, fileStorageMetricsPath=%v, restoreMetrics=%v, dbAddress=%v", address, storeMetricsInterval, fileStorageMetricsPath, restoreMetrics, dbAddress)
+
 	return &ServerParameters{
 		Address: address,
 		StoreMetricsInterval: storeMetricsInterval,
