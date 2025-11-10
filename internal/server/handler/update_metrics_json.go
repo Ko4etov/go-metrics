@@ -33,14 +33,11 @@ func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request)
 		validMetrics = append(validMetrics, metric)
 	}
 
-	// Обновляем метрики в хранилище
 	if err := h.storage.UpdateMetricsBatch(validMetrics); err != nil {
 		http.Error(res, "Failed to update metrics: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Возвращаем успешный ответ
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	json.NewEncoder(res).Encode(map[string]string{"status": "ok", "updated": string(len(validMetrics))})
 }
