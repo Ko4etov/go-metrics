@@ -10,5 +10,6 @@ type Storage interface {
 	Metrics() map[string]models.Metrics
 	UpdateMetric(metric models.Metrics) error
 	Metric(id string) (models.Metrics, bool)
+	UpdateMetricsBatch(metrics []models.Metrics) error
 	ResetAll()
 }

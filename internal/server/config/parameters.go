@@ -24,10 +24,7 @@ type ServerParameters struct {
 }
 
 func parseServerParameters() *ServerParameters {
-	err := godotenv.Load()
-	if err != nil {
-		logger.Logger.Infof("Error loading .env file: %v", err)
-	}
+	godotenv.Load()
 	
 	addressParameter()
 	storeMetricsIntervalParameter()
@@ -49,34 +46,27 @@ func parseServerParameters() *ServerParameters {
 }
 
 func dbAddressParameter() {
-	if dbAddressEnv := os.Getenv("DATABASE_DSN"); dbAddressEnv != "" {
-		dbAddress = dbAddressEnv
-		return
+	if env := os.Getenv("DATABASE_DSN"); env != "" {
+		dbAddress = env
 	}
 
 	flag.StringVar(&dbAddress, "d", dbAddress, "DB address")
 }
 
 func addressParameter() {
-	if addressEnv := os.Getenv("ADDRESS"); addressEnv != "" {
-		address = addressEnv
-		return
+	if env := os.Getenv("ADDRESS"); env != "" {
+		address = env
 	}
-
 	flag.StringVar(&address, "a", address, "Server address")
 }
 
 func storeMetricsIntervalParameter() {
-	storeMetricsIntervalEnv := os.Getenv("STORE_INTERVAL")
-
-	if storeMetricsIntervalEnv == "" {
-		flag.IntVar(&storeMetricsInterval, "i", storeMetricsInterval, "store metrics interval in seconds")
-		return
+	if env := os.Getenv("STORE_INTERVAL"); env != "" {
+		if val, err := strconv.Atoi(env); err == nil {
+			storeMetricsInterval = val
+		}
 	}
-
-	if result, err := strconv.Atoi(storeMetricsIntervalEnv); err == nil {
-		storeMetricsInterval = int(result)
-	}
+	flag.IntVar(&storeMetricsInterval, "i", storeMetricsInterval, "store metrics interval in seconds")
 }
 
 func fileStorageMetricsPathParameter() {
@@ -89,14 +79,10 @@ func fileStorageMetricsPathParameter() {
 }
 
 func restoreMetricsParameter() {
-	restoreMetricsEnv := os.Getenv("RESTORE")
-
-	if restoreMetricsEnv == "" {
-		flag.BoolVar(&restoreMetrics, "r", restoreMetrics, "restore metrics")
-		return
+	if env := os.Getenv("RESTORE"); env != "" {
+		if val, err := strconv.ParseBool(env); err == nil {
+			restoreMetrics = val
+		}
 	}
-
-	if result, err := strconv.ParseBool(restoreMetricsEnv); err == nil {
-		restoreMetrics = bool(result)
-	}
+	flag.BoolVar(&restoreMetrics, "r", restoreMetrics, "restore metrics")
 }

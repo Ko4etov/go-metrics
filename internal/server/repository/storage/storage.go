@@ -40,19 +40,7 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 
 	// Загрузка метрик при старте если нужно
 	if config.RestoreMetrics {
-		if config.ConnectionPoll != nil {
-			if err := storage.LoadFromDatabase(); err != nil {
-				logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
-			} else {
-				logger.Logger.Infof("Successfully loaded metrics from database")
-			}
-		} else if config.RestoreMetrics && config.FileStorageMetricsPath != ""  {
-			if err := storage.LoadFromFile(); err != nil {
-				logger.Logger.Infof("Warning: failed to load metrics from file: %v\n", err)
-			} else {
-				logger.Logger.Infof("Successfully loaded metrics from %s\n", config.FileStorageMetricsPath)
-			}
-		}
+		storage.LoadSavedMetrics()
 	}
 
 	return storage
@@ -163,13 +151,6 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 			fmt.Printf("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
 		}
 	}
-}
-
-func (ms *MetricsStorage) SyncSave() error {
-	if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
-		return ms.SaveToFile()
-	}
-	return nil
 }
 
 func (ms *MetricsStorage) LoadFromFile() error {
@@ -324,6 +305,79 @@ func (ms *MetricsStorage) CounterMetricModel(name string) (*models.Metrics, erro
 	}
 
 	return &metric, nil
+}
+
+func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case models.Gauge:
+			if metric.Value == nil {
+				return ErrInvalidValue
+			}
+			ms.metrics[metric.ID] = metric
+
+		case models.Counter:
+			if metric.Delta == nil {
+				return ErrInvalidDelta
+			}
+
+			if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
+				newDelta := *existing.Delta + *metric.Delta
+				metric.Delta = &newDelta
+			}
+			ms.metrics[metric.ID] = metric
+
+		default:
+			return ErrInvalidType
+		}
+	}
+
+	if ms.config.ConnectionPoll != nil {
+		if err := ms.saveMetricsBatchToDatabase(metrics); err != nil {
+			return fmt.Errorf("failed to save metrics batch to database: %w", err)
+		}
+	} else if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
+		return ms.SaveToFile()
+	}
+
+	return nil
+}
+
+func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) error {
+	ctx := context.Background()
+	
+	tx, err := ms.config.ConnectionPoll.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, metric := range metrics {
+		_, err := tx.Exec(ctx,
+			`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
+			 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+			 ON CONFLICT (id, type) 
+			 DO UPDATE SET 
+			   delta = EXCLUDED.delta,
+			   value = EXCLUDED.value,
+			   hash = EXCLUDED.hash,
+			   updated_at = CURRENT_TIMESTAMP`,
+			metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
+		
+		if err != nil {
+			return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
+		}
+	}
+
+	// Коммитим транзакцию
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 var (
