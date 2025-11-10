@@ -20,6 +20,7 @@ func New(metricsStorage *storage.MetricsStorage, pgx *pgxpool.Pool) *chi.Mux {
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
+	r.Post("/updates/", metricHandler.UpdateMetricsBatch)
 	r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 	r.Post("/value/", metricHandler.GetMetricJSON)
 	r.Get("/ping", metricHandler.DBPing)

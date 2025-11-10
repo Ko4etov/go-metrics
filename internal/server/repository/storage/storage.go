@@ -326,6 +326,79 @@ func (ms *MetricsStorage) CounterMetricModel(name string) (*models.Metrics, erro
 	return &metric, nil
 }
 
+func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case models.Gauge:
+			if metric.Value == nil {
+				return ErrInvalidValue
+			}
+			ms.metrics[metric.ID] = metric
+
+		case models.Counter:
+			if metric.Delta == nil {
+				return ErrInvalidDelta
+			}
+
+			if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
+				newDelta := *existing.Delta + *metric.Delta
+				metric.Delta = &newDelta
+			}
+			ms.metrics[metric.ID] = metric
+
+		default:
+			return ErrInvalidType
+		}
+	}
+
+	if ms.config.ConnectionPoll != nil {
+		if err := ms.saveMetricsBatchToDatabase(metrics); err != nil {
+			return fmt.Errorf("failed to save metrics batch to database: %w", err)
+		}
+	} else if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
+		return ms.SaveToFile()
+	}
+
+	return nil
+}
+
+func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) error {
+	ctx := context.Background()
+	
+	tx, err := ms.config.ConnectionPoll.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, metric := range metrics {
+		_, err := tx.Exec(ctx,
+			`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
+			 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+			 ON CONFLICT (id, type) 
+			 DO UPDATE SET 
+			   delta = EXCLUDED.delta,
+			   value = EXCLUDED.value,
+			   hash = EXCLUDED.hash,
+			   updated_at = CURRENT_TIMESTAMP`,
+			metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
+		
+		if err != nil {
+			return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
+		}
+	}
+
+	// Коммитим транзакцию
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 var (
 	ErrInvalidType  = errors.New("invalid metric type")
 	ErrInvalidValue = errors.New("invalid value for gauge metric")
