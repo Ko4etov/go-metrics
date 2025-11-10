@@ -40,19 +40,7 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 
 	// Загрузка метрик при старте если нужно
 	if config.RestoreMetrics {
-		if config.ConnectionPoll != nil {
-			if err := storage.LoadFromDatabase(); err != nil {
-				logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
-			} else {
-				logger.Logger.Infof("Successfully loaded metrics from database")
-			}
-		} else if config.RestoreMetrics && config.FileStorageMetricsPath != ""  {
-			if err := storage.LoadFromFile(); err != nil {
-				logger.Logger.Infof("Warning: failed to load metrics from file: %v\n", err)
-			} else {
-				logger.Logger.Infof("Successfully loaded metrics from %s\n", config.FileStorageMetricsPath)
-			}
-		}
+		storage.LoadSavedMetrics()
 	}
 
 	return storage
@@ -163,13 +151,6 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 			fmt.Printf("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
 		}
 	}
-}
-
-func (ms *MetricsStorage) SyncSave() error {
-	if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
-		return ms.SaveToFile()
-	}
-	return nil
 }
 
 func (ms *MetricsStorage) LoadFromFile() error {
