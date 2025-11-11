@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -44,7 +44,7 @@ func New(serverAddress string) *MetricsSenderService {
 // SendMetrics отправляет все метрики на сервер батчами
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 	if len(metrics) == 0 {
-		logger.Logger.Info("No metrics to send")
+		log.Printf("No metrics to send")
 		return
 	}
 
@@ -62,9 +62,9 @@ func (s *MetricsSenderService) sendSingleMetrics(metrics []models.Metrics) {
 		if err := s.sendWithRetry(func() error {
 			return s.SendMetricJSON(metric)
 		}); err != nil {
-			logger.Logger.Infof("Error sending metric %s after %d retries: %v", metric.ID, s.MaxRetries, err)
+			log.Printf("Error sending metric %s after %d retries: %v", metric.ID, s.MaxRetries, err)
 		} else {
-			logger.Logger.Infof("Metric sent successfully: %s", metric.ID)
+			log.Printf("Metric sent successfully: %s", metric.ID)
 		}
 	}
 }
@@ -73,17 +73,17 @@ func (s *MetricsSenderService) sendBatchMetrics(metrics []models.Metrics) {
 	batches := s.splitIntoBatches(metrics)
 
 	for i, batch := range batches {
-		logger.Logger.Infof("Sending batch %d/%d with %d metrics", i+1, len(batches), len(batch))
+		log.Printf("Sending batch %d/%d with %d metrics", i+1, len(batches), len(batch))
 		
 		if err := s.sendWithRetry(func() error {
 			return s.sendBatch(batch)
 		}); err != nil {
-			logger.Logger.Infof("Error sending batch %d after %d retries: %v", i+1, s.MaxRetries, err)
+			log.Printf("Error sending batch %d after %d retries: %v", i+1, s.MaxRetries, err)
 			
 			// При ошибке батча отправляем метрики по одной с retry
 			s.sendSingleMetrics(batch)
 		} else {
-			logger.Logger.Infof("Batch %d sent successfully", i+1)
+			log.Printf("Batch %d sent successfully", i+1)
 		}
 	}
 }
@@ -107,7 +107,7 @@ func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
 		// Если это не последняя попытка, ждем перед повторной попыткой
 		if attempt < s.MaxRetries {
 			delay := s.RetryDelays[attempt]
-			logger.Logger.Infof("Attempt %d failed: %v. Retrying in %v", attempt+1, err, delay)
+			log.Printf("Attempt %d failed: %v. Retrying in %v", attempt+1, err, delay)
 			time.Sleep(delay)
 		}
 	}
