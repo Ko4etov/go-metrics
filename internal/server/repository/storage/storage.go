@@ -12,6 +12,8 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -229,23 +231,6 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 	return nil
 }
 
-func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
-	ctx := context.Background()
-	
-	_, err := ms.config.ConnectionPoll.Exec(ctx,
-		`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
-		 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-		 ON CONFLICT (id, type) 
-		 DO UPDATE SET 
-		   delta = EXCLUDED.delta,
-		   value = EXCLUDED.value,
-		   hash = EXCLUDED.hash,
-		   updated_at = CURRENT_TIMESTAMP`,
-		metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
-	
-	return err
-}
-
 func (ms *MetricsStorage) Metric(id string) (models.Metrics, bool) {
 	metric, ok := ms.metrics[id]
 	return metric, ok
@@ -346,17 +331,12 @@ func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
 	return nil
 }
 
-func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) error {
-	ctx := context.Background()
-	
-	tx, err := ms.config.ConnectionPoll.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
+func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
+	operation := func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	for _, metric := range metrics {
-		_, err := tx.Exec(ctx,
+		_, err := ms.config.ConnectionPoll.Exec(ctx,
 			`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
 			 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
 			 ON CONFLICT (id, type) 
@@ -366,18 +346,132 @@ func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) e
 			   hash = EXCLUDED.hash,
 			   updated_at = CURRENT_TIMESTAMP`,
 			metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
-		
+
+		return err
+	}
+
+	return ms.executeWithRetry(operation, "save metric to database")
+}
+
+func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) error {
+	operation := func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		tx, err := ms.config.ConnectionPoll.Begin(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		for _, metric := range metrics {
+			_, err := tx.Exec(ctx,
+				`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
+				 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+				 ON CONFLICT (id, type) 
+				 DO UPDATE SET 
+				   delta = EXCLUDED.delta,
+				   value = EXCLUDED.value,
+				   hash = EXCLUDED.hash,
+				   updated_at = CURRENT_TIMESTAMP`,
+				metric.ID, metric.MType, metric.Delta, metric.Value, metric.Hash)
+
+			if err != nil {
+				return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
+			}
+		}
+
+		return tx.Commit(ctx)
+	}
+
+	return ms.executeWithRetry(operation, "save metrics batch to database")
+}
+
+func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName string) error {
+	if ms.config.ConnectionPoll == nil {
+		return operation() // Для файлового хранилища retry не нужен
+	}
+
+	maxRetries := 3
+	retryDelays := []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// Проверяем, является ли ошибка retriable
+		if !ms.isRetriableDBError(err) {
+			return fmt.Errorf("non-retriable database error: %w", err)
+		}
+
+		// Если это не последняя попытка, ждем перед повторной попыткой
+		if attempt < maxRetries {
+			delay := retryDelays[attempt]
+			logger.Logger.Warnf("Database %s attempt %d failed: %v. Retrying in %v", operationName, attempt+1, err, delay)
+			time.Sleep(delay)
 		}
 	}
 
-	// Коммитим транзакцию
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	return fmt.Errorf("database %s failed after %d retries: %w", operationName, maxRetries, lastErr)
+}
+
+func (ms *MetricsStorage) isRetriableDBError(err error) bool {
+	if err == nil {
+		return false
 	}
 
-	return nil
+	// Проверяем PostgreSQL ошибки класса 08 (Connection Exception)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// Class 08 - Connection Exception (retriable)
+		if len(pgErr.Code) >= 2 && pgErr.Code[0:2] == "08" {
+			return true
+		}
+
+		// Проверяем конкретные retriable коды ошибок
+		switch pgErr.Code {
+		case pgerrcode.AdminShutdown,
+			pgerrcode.CrashShutdown,
+			pgerrcode.CannotConnectNow,
+			pgerrcode.TooManyConnections:
+			return true
+		}
+
+		// Unique violation - не retriable
+		if pgErr.Code == pgerrcode.UniqueViolation {
+			return false
+		}
+	}
+
+	// Сетевые ошибки, таймауты контекста
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	// Проверяем по содержимому ошибки
+	errorStr := err.Error()
+	retriablePatterns := []string{
+		"connection", "network", "timeout", "dial", "broken pipe",
+		"connection reset", "unavailable", "closed",
+	}
+
+	for _, pattern := range retriablePatterns {
+		if contains(errorStr, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && (s[0:len(substr)] == substr || contains(s[1:], substr)))
 }
 
 var (

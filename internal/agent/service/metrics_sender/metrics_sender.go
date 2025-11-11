@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -18,6 +22,8 @@ type MetricsSenderService struct {
 	ServerAddress string
 	Client        *resty.Client
 	BatchSize     int
+	MaxRetries    int
+	RetryDelays   []time.Duration
 }
 
 // New создает новый отправитель
@@ -30,13 +36,15 @@ func New(serverAddress string) *MetricsSenderService {
 		ServerAddress: serverAddress,
 		Client:        client,
 		BatchSize:     10,
+		MaxRetries:    3,
+		RetryDelays:   []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second},
 	}
 }
 
 // SendMetrics отправляет все метрики на сервер батчами
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 	if len(metrics) == 0 {
-		log.Println("No metrics to send")
+		log.Printf("No metrics to send")
 		return
 	}
 
@@ -51,10 +59,12 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 
 func (s *MetricsSenderService) sendSingleMetrics(metrics []models.Metrics) {
 	for _, metric := range metrics {
-		if err := s.SendMetricJSON(metric); err != nil {
-			log.Printf("Error sending metric %s: %v", metric.ID, err)
+		if err := s.sendWithRetry(func() error {
+			return s.SendMetricJSON(metric)
+		}); err != nil {
+			log.Printf("Error sending metric %s after %d retries: %v", metric.ID, s.MaxRetries, err)
 		} else {
-			log.Printf("Metric sent successfully: %s = %v", metric.ID, metric.Value)
+			log.Printf("Metric sent successfully: %s", metric.ID)
 		}
 	}
 }
@@ -65,15 +75,102 @@ func (s *MetricsSenderService) sendBatchMetrics(metrics []models.Metrics) {
 	for i, batch := range batches {
 		log.Printf("Sending batch %d/%d with %d metrics", i+1, len(batches), len(batch))
 		
-		if err := s.sendBatch(batch); err != nil {
-			log.Printf("Error sending batch %d: %v", i+1, err)
+		if err := s.sendWithRetry(func() error {
+			return s.sendBatch(batch)
+		}); err != nil {
+			log.Printf("Error sending batch %d after %d retries: %v", i+1, s.MaxRetries, err)
 			
-			// При ошибке батча отправляем метрики по одной
+			// При ошибке батча отправляем метрики по одной с retry
 			s.sendSingleMetrics(batch)
 		} else {
 			log.Printf("Batch %d sent successfully", i+1)
 		}
 	}
+}
+
+func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
+	var lastErr error
+	
+	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+		
+		lastErr = err
+		
+		// Проверяем, является ли ошибка retriable
+		if !s.isRetriableError(err) {
+			return fmt.Errorf("non-retriable error: %w", err)
+		}
+		
+		// Если это не последняя попытка, ждем перед повторной попыткой
+		if attempt < s.MaxRetries {
+			delay := s.RetryDelays[attempt]
+			log.Printf("Attempt %d failed: %v. Retrying in %v", attempt+1, err, delay)
+			time.Sleep(delay)
+		}
+	}
+	
+	return fmt.Errorf("failed after %d retries: %w", s.MaxRetries, lastErr)
+}
+
+func (s *MetricsSenderService) isRetriableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	var (
+		urlErr *url.Error
+		netErr net.Error
+		opErr  *net.OpError
+		dnsErr *net.DNSError
+	)
+	
+	switch {
+	case errors.As(err, &urlErr):
+		// Все URL ошибки считаем retriable (сетевые, DNS, таймауты)
+		return true
+		
+	case errors.As(err, &netErr):
+		// Сетевые ошибки - проверяем таймауты
+		return netErr.Timeout()
+		
+	case errors.As(err, &opErr):
+		// Операционные сетевые ошибки
+		return true
+		
+	case errors.As(err, &dnsErr):
+		// DNS ошибки - временные или таймауты
+		return dnsErr.IsTimeout || dnsErr.IsTemporary
+	}
+	
+	// Проверяем по содержимому ошибки
+	errorStr := strings.ToLower(err.Error())
+	retriablePatterns := []string{
+		"timeout", "connection refused", "connection reset", 
+		"network", "temporary", "unavailable", "dial tcp",
+		"no such host", "EOF", "broken pipe", "connection aborted",
+		"i/o timeout", "network is unreachable", "reset by peer",
+		"service unavailable", "bad gateway", "gateway timeout",
+	}
+	
+	for _, pattern := range retriablePatterns {
+		if strings.Contains(errorStr, pattern) {
+			return true
+		}
+	}
+	
+	// Проверяем HTTP статусы через resty.Response если доступно
+	if respErr, ok := err.(interface{ Response() *resty.Response }); ok {
+		if resp := respErr.Response(); resp != nil {
+			statusCode := resp.StatusCode()
+			// 5xx ошибки и 429 (Too Many Requests) - retriable
+			return statusCode >= 500 && statusCode <= 599 || statusCode == 429
+		}
+	}
+	
+	return false
 }
 
 func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]models.Metrics {
