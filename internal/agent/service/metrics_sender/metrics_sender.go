@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -119,34 +118,40 @@ func (s *MetricsSenderService) isRetriableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
-	var (
-		urlErr *url.Error
-		netErr net.Error
-		opErr  *net.OpError
-		dnsErr *net.DNSError
-	)
-	
-	switch {
-	case errors.As(err, &urlErr):
-		// Все URL ошибки считаем retriable (сетевые, DNS, таймауты)
+
+	// Проверяем типы ошибок
+	if s.isNetworkError(err) {
 		return true
-		
-	case errors.As(err, &netErr):
-		// Сетевые ошибки - проверяем таймауты
-		return netErr.Timeout()
-		
-	case errors.As(err, &opErr):
-		// Операционные сетевые ошибки
-		return true
-		
-	case errors.As(err, &dnsErr):
-		// DNS ошибки - временные или таймауты
-		return dnsErr.IsTimeout || dnsErr.IsTemporary
 	}
-	
+
 	// Проверяем по содержимому ошибки
+	if s.isRetriableByContent(err) {
+		return true
+	}
+
+	// Проверяем HTTP статусы
+	if s.isRetriableHTTPStatus(err) {
+		return true
+	}
+
+	return false
+}
+
+// isNetworkError проверяет сетевые ошибки
+func (s *MetricsSenderService) isNetworkError(err error) bool {
+	switch e := err.(type) {
+	case *url.Error:
+		return true
+	case net.Error:
+		return e.Timeout()
+	}
+	return false
+}
+
+// isRetriableByContent проверяет ошибки по их текстовому содержимому
+func (s *MetricsSenderService) isRetriableByContent(err error) bool {
 	errorStr := strings.ToLower(err.Error())
+	
 	retriablePatterns := []string{
 		"timeout", "connection refused", "connection reset", 
 		"network", "temporary", "unavailable", "dial tcp",
@@ -154,13 +159,18 @@ func (s *MetricsSenderService) isRetriableError(err error) bool {
 		"i/o timeout", "network is unreachable", "reset by peer",
 		"service unavailable", "bad gateway", "gateway timeout",
 	}
-	
+
 	for _, pattern := range retriablePatterns {
 		if strings.Contains(errorStr, pattern) {
 			return true
 		}
 	}
 	
+	return false
+}
+
+// isRetriableHTTPStatus проверяет HTTP статусы ошибок
+func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
 	// Проверяем HTTP статусы через resty.Response если доступно
 	if respErr, ok := err.(interface{ Response() *resty.Response }); ok {
 		if resp := respErr.Response(); resp != nil {
@@ -169,7 +179,6 @@ func (s *MetricsSenderService) isRetriableError(err error) bool {
 			return statusCode >= 500 && statusCode <= 599 || statusCode == 429
 		}
 	}
-	
 	return false
 }
 
