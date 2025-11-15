@@ -7,11 +7,11 @@ type AgentConfig struct {
 }
 
 func New() *AgentConfig {
-	parseAgentParameters()
+	parameters := parseAgentParameters()
 
 	return &AgentConfig{
-		Address: address,
-		PollInterval: pollInterval,
-		ReportInterval: reportInterval,
+		Address: parameters.Address,
+		PollInterval: parameters.PollInterval,
+		ReportInterval: parameters.ReportInterval,
 	}
 }

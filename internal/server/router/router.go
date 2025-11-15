@@ -5,12 +5,11 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func New() *chi.Mux {
-	metricsStorage := storage.New()
-	
-	metricHandler := handler.New(metricsStorage)
+func New(metricsStorage *storage.MetricsStorage, pgx *pgxpool.Pool) *chi.Mux {
+	metricHandler := handler.New(metricsStorage, pgx)
 
 	r := chi.NewRouter()
 
@@ -21,8 +20,10 @@ func New() *chi.Mux {
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
+	r.Post("/updates/", metricHandler.UpdateMetricsBatch)
 	r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 	r.Post("/value/", metricHandler.GetMetricJSON)
+	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
 	return r;

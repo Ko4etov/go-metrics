@@ -9,11 +9,18 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestUpdateMetric(t *testing.T) {
-	storage := storage.New()
-	metricHandler := New(storage)
+	storageConfig := &storage.MetricsStorageConfig{
+		RestoreMetrics: false,
+		StoreMetricsInterval: 100,
+		FileStorageMetricsPath: "metrics.json",
+	}
+	storage := storage.New(storageConfig)
+	var poll *pgxpool.Pool
+	metricHandler := New(storage, poll)
 	storage.ResetAll()
 
 	tests := []struct {

@@ -6,7 +6,11 @@ import (
 )
 
 func main() {
-	config := config.New()
+	config, err := config.New()
 
-	server.New(config.ServerAddress).Run()
+	if err != nil {
+		panic(err)
+	}
+
+	server.New(config).Run()
 }

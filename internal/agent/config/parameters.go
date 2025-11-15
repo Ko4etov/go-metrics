@@ -10,12 +10,24 @@ var address string = ":8080"
 var reportInterval int = 2
 var pollInterval int = 10
 
-func parseAgentParameters() {
+type AgentParameters struct {
+	Address string
+	ReportInterval int
+	PollInterval int
+}
+
+func parseAgentParameters() *AgentParameters {
 	addressParameter()
 	reportIntervalParameter()
 	pollIntervalParameter()
 
 	flag.Parse()
+
+	return &AgentParameters{
+		Address: address,
+		ReportInterval: reportInterval,
+		PollInterval: pollInterval,
+	}
 }
 
 func addressParameter() {
@@ -49,6 +61,6 @@ func pollIntervalParameter() {
 	}
 
 	if result, err := strconv.ParseInt(pollIntervalEnv, 0, 64); err == nil {
-		reportInterval = int(result)
+		pollInterval = int(result)
 	}
 }
