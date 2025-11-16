@@ -25,7 +25,7 @@ func New(config *RouteConfig) *chi.Mux {
 	// Добавляем полезные middleware
 	r.Use(middlewares.WithLogging)
 	r.Use(middlewares.WithHashing(hashConfig))
-	r.Use(middlewares.WithLogging)
+	r.Use(middlewares.WithCompression)
 
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
