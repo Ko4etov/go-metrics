@@ -9,17 +9,20 @@ import (
 var address string = ":8080"
 var reportInterval int = 2
 var pollInterval int = 10
+var hashKey string
 
 type AgentParameters struct {
 	Address string
 	ReportInterval int
 	PollInterval int
+	HashKey string
 }
 
 func parseAgentParameters() *AgentParameters {
 	addressParameter()
 	reportIntervalParameter()
 	pollIntervalParameter()
+	hashKeyParameter()
 
 	flag.Parse()
 
@@ -27,7 +30,16 @@ func parseAgentParameters() *AgentParameters {
 		Address: address,
 		ReportInterval: reportInterval,
 		PollInterval: pollInterval,
+		HashKey: hashKey,
 	}
+}
+
+func hashKeyParameter() {
+	if env := os.Getenv("KEY"); env != "" {
+		hashKey = env
+	}
+
+	flag.StringVar(&hashKey, "k", hashKey, "Hash key")
 }
 
 func addressParameter() {

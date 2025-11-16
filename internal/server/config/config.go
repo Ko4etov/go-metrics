@@ -14,6 +14,7 @@ type ServerConfig struct {
 	FileStorageMetricsPath string
 	RestoreMetrics bool
 	ConnectionPool *pgxpool.Pool
+	HashKey string
 }
 
 func New() (*ServerConfig, error) {
@@ -49,5 +50,6 @@ func New() (*ServerConfig, error) {
 		FileStorageMetricsPath: fileStorageMetricsPath,
 		RestoreMetrics: restoreMetrics,
 		ConnectionPool: poll,
+		HashKey: hashKey,
 	}, nil
 }

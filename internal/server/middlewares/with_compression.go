@@ -7,48 +7,47 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
-type (
-	responseData struct {
-		status int
-		size   int
-	}
-
-	customResponseWriter struct {
-		http.ResponseWriter
-		responseData *responseData
-		buffer       *bytes.Buffer
-		header       http.Header
-	}
-)
-
-func (w *customResponseWriter) Write(b []byte) (int, error) {
-	size, err := w.buffer.Write(b)
-	w.responseData.size += size
-	return size, err
+// compressionWriter перехватывает ответ для компрессии
+type compressionWriter struct {
+	http.ResponseWriter
+	buffer       *bytes.Buffer
+	header       http.Header
+	statusCode   int
+	wroteHeader  bool
 }
 
-func (w *customResponseWriter) WriteHeader(statusCode int) {
-	w.responseData.status = statusCode
+func newCompressionWriter(w http.ResponseWriter) *compressionWriter {
+	return &compressionWriter{
+		ResponseWriter: w,
+		buffer:         &bytes.Buffer{},
+		header:         make(http.Header),
+		statusCode:     http.StatusOK,
+	}
 }
 
-func (w *customResponseWriter) Header() http.Header {
-	if w.header == nil {
-		w.header = make(http.Header)
-	}
+func (w *compressionWriter) Header() http.Header {
 	return w.header
 }
 
+func (w *compressionWriter) Write(data []byte) (int, error) {
+	return w.buffer.Write(data)
+}
+
+func (w *compressionWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.wroteHeader = true
+}
+
+// shouldDecompressRequest проверяет нужно ли декомпрессировать запрос
 func shouldDecompressRequest(req *http.Request) bool {
 	return req.Header.Get("Content-Encoding") == "gzip" &&
 		(req.Header.Get("Content-Type") == "application/json" || 
 		 req.Header.Get("Content-Type") == "text/html")
 }
 
+// shouldCompressResponse проверяет нужно ли компрессировать ответ
 func shouldCompressResponse(req *http.Request, responseContentType string) bool {
 	acceptEncoding := req.Header.Get("Accept-Encoding")
 	
@@ -56,6 +55,7 @@ func shouldCompressResponse(req *http.Request, responseContentType string) bool 
 		(responseContentType == "application/json" || responseContentType == "text/html")
 }
 
+// decompressRequestBody декомпрессирует тело запроса
 func decompressRequestBody(req *http.Request) error {
 	gzReader, err := gzip.NewReader(req.Body)
 	if err != nil {
@@ -75,6 +75,7 @@ func decompressRequestBody(req *http.Request) error {
 	return nil
 }
 
+// compressResponseBody компрессирует тело ответа
 func compressResponseBody(data []byte) ([]byte, error) {
 	var compressedBuf bytes.Buffer
 	gzWriter := gzip.NewWriter(&compressedBuf)
@@ -90,19 +91,20 @@ func compressResponseBody(data []byte) ([]byte, error) {
 	return compressedBuf.Bytes(), nil
 }
 
-// WithLoggingAndCompress middleware для логирования и компрессии
-func WithLoggingAndCompress(next http.Handler) http.Handler {
+// WithCompression middleware для компрессии/декомпрессии
+func WithCompression(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		start := time.Now()
-
+		// Создаем копию запроса для безопасной модификации
 		newReq := req.Clone(req.Context())
 		
+		// Декомпрессия входящего запроса если нужно
 		if shouldDecompressRequest(req) {
 			if err := decompressRequestBody(newReq); err != nil {
 				http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 		} else {
+			// Копируем тело если не декомпрессируем
 			if req.Body != nil && req.Body != http.NoBody {
 				body, err := io.ReadAll(req.Body)
 				if err != nil {
@@ -114,60 +116,56 @@ func WithLoggingAndCompress(next http.Handler) http.Handler {
 			}
 		}
 
-		responseData := &responseData{status: http.StatusOK}
-		responseWriter := &customResponseWriter{
-			ResponseWriter: res,
-			responseData:   responseData,
-			buffer:         &bytes.Buffer{},
-			header:         make(http.Header),
-		}
+		// Создаем writer для перехвата ответа
+		compWriter := newCompressionWriter(res)
 
-		next.ServeHTTP(responseWriter, newReq)
+		// Вызываем следующий обработчик
+		next.ServeHTTP(compWriter, newReq)
 
-		responseContentType := responseWriter.header.Get("Content-Type")
+		// Получаем Content-Type ответа
+		responseContentType := compWriter.header.Get("Content-Type")
 		shouldCompress := shouldCompressResponse(req, responseContentType)
 
 		var finalBody []byte
 		
-		if shouldCompress && responseWriter.buffer.Len() > 0 {
-			compressedBody, err := compressResponseBody(responseWriter.buffer.Bytes())
+		// Компрессия ответа если нужно
+		if shouldCompress && compWriter.buffer.Len() > 0 {
+			compressedBody, err := compressResponseBody(compWriter.buffer.Bytes())
 			if err != nil {
 				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 			finalBody = compressedBody
 		} else {
-			finalBody = responseWriter.buffer.Bytes()
+			finalBody = compWriter.buffer.Bytes()
 		}
 
-		for key, values := range responseWriter.header {
+		// Копируем заголовки из перехваченного ответа
+		for key, values := range compWriter.header {
 			for _, value := range values {
 				res.Header().Set(key, value)
 			}
 		}
 
+		// Устанавливаем заголовки компрессии если нужно
 		if shouldCompress {
 			res.Header().Set("Content-Encoding", "gzip")
 			res.Header().Set("Vary", "Accept-Encoding")
 		}
 
+		// Устанавливаем Content-Length
 		res.Header().Set("Content-Length", strconv.Itoa(len(finalBody)))
 
-		res.WriteHeader(responseData.status)
+		// Отправляем статус и тело
+		if compWriter.wroteHeader {
+			res.WriteHeader(compWriter.statusCode)
+		} else {
+			res.WriteHeader(http.StatusOK)
+		}
+		
 		if _, err := res.Write(finalBody); err != nil {
-			logger.Logger.Errorln("Error writing response:", err)
+			// Логируем ошибку, но не можем вернуть её
 			return
 		}
-
-		// Логирование
-		duration := time.Since(start)
-		logger.Logger.Infoln(
-			"uri", req.RequestURI,
-			"method", req.Method,
-			"duration", duration,
-			"status", responseData.status,
-			"size", len(finalBody),
-			"compressed", shouldCompress,
-		)
 	})
 }

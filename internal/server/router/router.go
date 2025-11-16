@@ -8,14 +8,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func New(metricsStorage *storage.MetricsStorage, pgx *pgxpool.Pool) *chi.Mux {
-	metricHandler := handler.New(metricsStorage, pgx)
+type RouteConfig struct {
+	Storage *storage.MetricsStorage
+	Pgx *pgxpool.Pool
+	HashKey string
+}
+
+func New(config *RouteConfig) *chi.Mux {
+	metricHandler := handler.New(config.Storage, config.Pgx)
+	hashConfig := &middlewares.HashConfig{
+		SecretKey: config.HashKey,
+	}
 
 	r := chi.NewRouter()
 
 	// Добавляем полезные middleware
-	// r.Use(middleware.Logger) // Логирование всех запросов
-	r.Use(middlewares.WithLoggingAndCompress)
+	r.Use(middlewares.WithLogging)
+	r.Use(middlewares.WithHashing(hashConfig))
+	r.Use(middlewares.WithLogging)
 
 	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
