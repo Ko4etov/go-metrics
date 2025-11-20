@@ -87,24 +87,24 @@ func WithHashing(config *HashConfig) func(http.Handler) http.Handler {
 
                 receivedHash := req.Header.Get("HashSHA256")
 
-                logger.Logger.Printf("Hash validation - Received hash: %s", receivedHash)
-				logger.Logger.Printf("Hash validation - Body length: %d", len(bodyBytes))
-				logger.Logger.Printf("Hash validation - Body (first 100 chars): %s", string(bodyBytes[:min(100, len(bodyBytes))]))
-				logger.Logger.Printf("Hash validation - Content-Encoding: %s", req.Header.Get("Content-Encoding"))
-				logger.Logger.Printf("Hash validation - Content-Type: %s", req.Header.Get("Content-Type"))
+                logger.Logger.Infof("Hash validation - Received hash: %s", receivedHash)
+				logger.Logger.Infof("Hash validation - Body length: %d", len(bodyBytes))
+				logger.Logger.Infof("Hash validation - Body (first 100 chars): %s", string(bodyBytes[:min(100, len(bodyBytes))]))
+				logger.Logger.Infof("Hash validation - Content-Encoding: %s", req.Header.Get("Content-Encoding"))
+				logger.Logger.Infof("Hash validation - Content-Type: %s", req.Header.Get("Content-Type"))
 
                 if receivedHash != "" {
                     expectedHash := calculateHash(bodyBytes, config.SecretKey)
-                    logger.Logger.Printf("Hash validation - Expected hash: %s", expectedHash)
+                    logger.Logger.Infof("Hash validation - Expected hash: %s", expectedHash)
 
                     if !hmac.Equal([]byte(receivedHash), []byte(expectedHash)) {
                         logger.Logger.Warnln("Hash validation failed - JSON mismatch")
-                        logger.Logger.Printf("Hash validation - Received: %s", receivedHash)
-						logger.Logger.Printf("Hash validation - Expected: %s", expectedHash)
+                        logger.Logger.Infof("Hash validation - Received: %s", receivedHash)
+						logger.Logger.Infof("Hash validation - Expected: %s", expectedHash)
                         http.Error(res, "Invalid hash signature", http.StatusBadRequest)
                         return
                     }
-                    logger.Logger.Println("Hash validation successful")
+                    logger.Logger.Infof("Hash validation successful")
                 }
             }
 
