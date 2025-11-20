@@ -170,11 +170,6 @@ func (s *MetricsSenderService) isRetriableError(err error) bool {
 		return false
 	}
 
-	// Ошибки хэширования не являются retriable
-	if strings.Contains(strings.ToLower(err.Error()), "hash") {
-		return false
-	}
-
 	// Проверяем типы ошибок
 	if s.isNetworkError(err) {
 		return true
@@ -227,12 +222,12 @@ func (s *MetricsSenderService) isRetriableByContent(err error) bool {
 
 // isRetriableHTTPStatus проверяет HTTP статусы ошибок
 func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
-	// Проверяем HTTP статусы через resty.Response если доступно
 	if respErr, ok := err.(interface{ Response() *resty.Response }); ok {
 		if resp := respErr.Response(); resp != nil {
 			statusCode := resp.StatusCode()
 			// 5xx ошибки и 429 (Too Many Requests) - retriable
-			return statusCode >= 500 && statusCode <= 599 || statusCode == 429
+			return (statusCode >= 400 && statusCode <= 499 && statusCode != 429) || 
+			       (statusCode >= 500 && statusCode <= 599)
 		}
 	}
 	return false
