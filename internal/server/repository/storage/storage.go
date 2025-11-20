@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +30,7 @@ type MetricsStorageConfig struct {
 	RestoreMetrics         bool
 	StoreMetricsInterval   int
 	FileStorageMetricsPath string
-	ConnectionPoll         *pgxpool.Pool
+	ConnectionPool         *pgxpool.Pool
 }
 
 func New(config *MetricsStorageConfig) *MetricsStorage {
@@ -49,7 +50,7 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 }
 
 func (ms *MetricsStorage) LoadSavedMetrics() {
-	if ms.config.ConnectionPoll != nil {
+	if ms.config.ConnectionPool != nil {
 		if err := ms.LoadFromDatabase(); err != nil {
 			logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
 		} else {
@@ -66,7 +67,7 @@ func (ms *MetricsStorage) LoadSavedMetrics() {
 
 func (ms *MetricsStorage) LoadFromDatabase() error {
 	ctx := context.Background()
-	rows, err := ms.config.ConnectionPoll.Query(ctx, 
+	rows, err := ms.config.ConnectionPool.Query(ctx, 
 		"SELECT id, type, delta, value, hash FROM metrics")
 	if err != nil {
 		return fmt.Errorf("failed to query metrics: %w", err)
@@ -219,7 +220,7 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 		return ErrInvalidType
 	}
 
-	if ms.config.ConnectionPoll != nil {
+	if ms.config.ConnectionPool != nil {
 		if err := ms.saveMetricToDatabase(metric); err != nil {
 			return fmt.Errorf("failed to save metric to database: %w", err)
 		}
@@ -320,7 +321,7 @@ func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
 		}
 	}
 
-	if ms.config.ConnectionPoll != nil {
+	if ms.config.ConnectionPool != nil {
 		if err := ms.saveMetricsBatchToDatabase(metrics); err != nil {
 			return fmt.Errorf("failed to save metrics batch to database: %w", err)
 		}
@@ -336,7 +337,7 @@ func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		_, err := ms.config.ConnectionPoll.Exec(ctx,
+		_, err := ms.config.ConnectionPool.Exec(ctx,
 			`INSERT INTO metrics (id, type, delta, value, hash, updated_at) 
 			 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
 			 ON CONFLICT (id, type) 
@@ -358,7 +359,7 @@ func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) e
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		tx, err := ms.config.ConnectionPoll.Begin(ctx)
+		tx, err := ms.config.ConnectionPool.Begin(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
@@ -388,7 +389,7 @@ func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) e
 }
 
 func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName string) error {
-	if ms.config.ConnectionPoll == nil {
+	if ms.config.ConnectionPool == nil {
 		return operation() // Для файлового хранилища retry не нужен
 	}
 
@@ -425,53 +426,67 @@ func (ms *MetricsStorage) isRetriableDBError(err error) bool {
 		return false
 	}
 
-	// Проверяем PostgreSQL ошибки класса 08 (Connection Exception)
+	return ms.isPostgresRetriableError(err) ||
+	       ms.isContextError(err) ||
+	       ms.isNetworkErrorByContent(err)
+}
+
+// isPostgresRetriableError проверяет PostgreSQL-specific retriable ошибки
+func (ms *MetricsStorage) isPostgresRetriableError(err error) bool {
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		// Class 08 - Connection Exception (retriable)
-		if len(pgErr.Code) >= 2 && pgErr.Code[0:2] == "08" {
-			return true
-		}
-
-		// Проверяем конкретные retriable коды ошибок
-		switch pgErr.Code {
-		case pgerrcode.AdminShutdown,
-			pgerrcode.CrashShutdown,
-			pgerrcode.CannotConnectNow,
-			pgerrcode.TooManyConnections:
-			return true
-		}
-
-		// Unique violation - не retriable
-		if pgErr.Code == pgerrcode.UniqueViolation {
-			return false
-		}
+	if !errors.As(err, &pgErr) {
+		return false
 	}
 
-	// Сетевые ошибки, таймауты контекста
-	if errors.Is(err, context.DeadlineExceeded) ||
-		errors.Is(err, context.Canceled) {
+	return ms.isPostgresConnectionError(pgErr) ||
+	       ms.isPostgresRetriableCode(pgErr) ||
+	       !ms.isPostgresNonRetriableError(pgErr)
+}
+
+// isPostgresConnectionError проверяет ошибки класса Connection Exception (08)
+func (ms *MetricsStorage) isPostgresConnectionError(pgErr *pgconn.PgError) bool {
+	// Class 08 - Connection Exception (retriable)
+	return len(pgErr.Code) >= 2 && pgErr.Code[0:2] == "08"
+}
+
+// isPostgresRetriableCode проверяет конкретные retriable коды ошибок PostgreSQL
+func (ms *MetricsStorage) isPostgresRetriableCode(pgErr *pgconn.PgError) bool {
+	switch pgErr.Code {
+	case pgerrcode.AdminShutdown,
+		pgerrcode.CrashShutdown,
+		pgerrcode.CannotConnectNow,
+		pgerrcode.TooManyConnections:
 		return true
 	}
+	return false
+}
 
-	// Проверяем по содержимому ошибки
-	errorStr := err.Error()
+// isPostgresNonRetriableError проверяет non-retriable ошибки PostgreSQL
+func (ms *MetricsStorage) isPostgresNonRetriableError(pgErr *pgconn.PgError) bool {
+	// Unique violation - не retriable
+	return pgErr.Code == pgerrcode.UniqueViolation
+}
+
+// isContextError проверяет ошибки контекста
+func (ms *MetricsStorage) isContextError(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) ||
+	       errors.Is(err, context.Canceled)
+}
+
+// isNetworkErrorByContent проверяет сетевые ошибки по содержимому
+func (ms *MetricsStorage) isNetworkErrorByContent(err error) bool {
+	errorStr := strings.ToLower(err.Error()) // Добавляем ToLower для надежности
 	retriablePatterns := []string{
 		"connection", "network", "timeout", "dial", "broken pipe",
 		"connection reset", "unavailable", "closed",
 	}
 
 	for _, pattern := range retriablePatterns {
-		if contains(errorStr, pattern) {
+		if strings.Contains(errorStr, pattern) {
 			return true
 		}
 	}
-
 	return false
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && (s[0:len(substr)] == substr || contains(s[1:], substr)))
 }
 
 var (

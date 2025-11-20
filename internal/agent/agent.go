@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Ko4etov/go-metrics/internal/agent/config"
 	"github.com/Ko4etov/go-metrics/internal/agent/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
 	metricssender "github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
@@ -25,15 +26,15 @@ type Agent struct {
 }
 
 // NewAgent создает новый экземпляр агента
-func New(pollInterval time.Duration, reportInterval time.Duration, serverAddress string) *Agent {
+func New(config *config.AgentConfig) *Agent {
 	collector := collector.New()
-	sender := metricssender.New(serverAddress)
+	sender := metricssender.New(config.Address, config.HashKey)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Agent{
-		pollInterval:       pollInterval,
-		reportInterval:     reportInterval,
-		serverAddress:      serverAddress,
+		pollInterval:       config.PollInterval,
+		reportInterval:     config.ReportInterval,
+		serverAddress:      config.Address,
 		collector:          collector,
 		sender:             sender,
 		ctx:                ctx,
