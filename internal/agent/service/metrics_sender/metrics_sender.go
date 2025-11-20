@@ -62,6 +62,8 @@ func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *
 		hash := s.calculateHash(data)
 		req.SetHeader("HashSHA256", hash)
 		log.Printf("Added hash header for %d bytes of data", len(data))
+		log.Printf("Data for hash: %s", string(data))
+		log.Printf("Computed hash: %s", hash)
 	}
 	return req
 }

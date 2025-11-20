@@ -71,6 +71,7 @@ func shouldValidateHash(req *http.Request) bool {
 func WithHashing(config *HashConfig) func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+            logger.Logger.Printf("🔑 Server hash key: '%s' (length: %d)", config.SecretKey, len(config.SecretKey))
             if config.SecretKey == "" {
                 next.ServeHTTP(res, req)
                 return
