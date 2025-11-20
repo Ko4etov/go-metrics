@@ -282,7 +282,6 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 		return fmt.Errorf("server error: %s", resp.Status())
 	}
 
-	// Проверяем хеш ответа
 	if err := s.verifyResponseHash(resp); err != nil {
 		return fmt.Errorf("response hash verification failed: %w", err)
 	}
