@@ -290,14 +290,6 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	return nil
 }
 
-func (s *MetricsSenderService) marshalMetrics(metrics []models.Metrics) ([]byte, error) {
-	jsonData, err := json.Marshal(metrics)
-	if err != nil {
-		return nil, fmt.Errorf("marshal metrics failed: %w", err)
-	}
-	return jsonData, nil
-}
-
 // compressData сжимает данные с помощью gzip
 func (s *MetricsSenderService) compressData(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
