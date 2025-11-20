@@ -258,19 +258,25 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 
 	url := fmt.Sprintf("http://%s/updates/", s.ServerAddress)
 
-	requestBody, err := s.prepareBatchRequestBody(metrics)
-	if err != nil {
-		return fmt.Errorf("prepare batch request failed: %w", err)
-	}
+	jsonData, err := json.Marshal(metrics)
+    if err != nil {
+        return fmt.Errorf("marshal metrics failed: %w", err)
+    }
+    
+    // Сжимаем данные для отправки
+    compressedData, err := s.compressData(jsonData)
+    if err != nil {
+        return fmt.Errorf("compress data failed: %w", err)
+    }
 
 	req := s.Client.R().
-		SetBody(requestBody).
+		SetBody(compressedData).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip")
 
 	// Добавляем хеш заголовок
-	req = s.addHashHeaders(req, requestBody)
+	req = s.addHashHeaders(req, jsonData)
 
 	resp, err := req.Post(url)
 	if err != nil {
