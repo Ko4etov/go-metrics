@@ -23,8 +23,8 @@ func New(config *RouteConfig) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Добавляем полезные middleware
-	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithHashing(hashConfig))
+	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithLogging)
 
 	// Объявляем маршруты
