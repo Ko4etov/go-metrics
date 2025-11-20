@@ -258,19 +258,23 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 
 	url := fmt.Sprintf("http://%s/updates/", s.ServerAddress)
 
-	requestBody, err := s.prepareBatchRequestBody(metrics)
+	jsonData, err := json.Marshal(metrics)
 	if err != nil {
-		return fmt.Errorf("prepare batch request failed: %w", err)
+		return fmt.Errorf("marshal metrics failed: %w", err)
+	}
+
+	compressedData, err := s.compressData(jsonData)
+	if err != nil {
+		return fmt.Errorf("compress data failed: %w", err)
 	}
 
 	req := s.Client.R().
-		SetBody(requestBody).
+		SetBody(compressedData).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip")
 
-	// Добавляем хеш заголовок
-	req = s.addHashHeaders(req, requestBody)
+	req = s.addHashHeaders(req, jsonData)
 
 	resp, err := req.Post(url)
 	if err != nil {
@@ -287,20 +291,6 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	}
 
 	return nil
-}
-
-func (s *MetricsSenderService) prepareBatchRequestBody(metrics []models.Metrics) ([]byte, error) {
-	jsonData, err := s.marshalMetrics(metrics)
-	if err != nil {
-		return nil, err
-	}
-
-	compressedData, err := s.compressData(jsonData)
-	if err != nil {
-		return nil, err
-	}
-
-	return compressedData, nil
 }
 
 func (s *MetricsSenderService) marshalMetrics(metrics []models.Metrics) ([]byte, error) {
@@ -350,7 +340,6 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
 func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 	url := fmt.Sprintf("http://%s/update/", s.ServerAddress)
 
-	// Сериализуем метрику для вычисления хеша
 	jsonData, err := json.Marshal(metric)
 	if err != nil {
 		return fmt.Errorf("marshal metric failed: %w", err)
@@ -367,7 +356,6 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		return fmt.Errorf("gzip close failed: %w", err)
 	}
 
-	// Создаем запрос с хэшированием
 	req := s.Client.R().
 		SetBody(buf.Bytes()).
 		SetHeader("Content-Type", "application/json").
@@ -375,7 +363,7 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Length", strconv.Itoa(buf.Len()))
 
-	req = s.addHashHeaders(req, buf.Bytes())
+	req = s.addHashHeaders(req, jsonData)
 
 	resp, err := req.Post(url)
 	if err != nil {
