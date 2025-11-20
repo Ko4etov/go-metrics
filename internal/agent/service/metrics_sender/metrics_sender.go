@@ -258,19 +258,11 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 
 	url := fmt.Sprintf("http://%s/updates/", s.ServerAddress)
 
-	// Подготавливаем данные
 	requestBody, err := s.prepareBatchRequestBody(metrics)
 	if err != nil {
 		return fmt.Errorf("prepare batch request failed: %w", err)
 	}
 
-	// Получаем данные для хеширования
-	hashData, err := s.getBatchHashData(metrics)
-	if err != nil {
-		return fmt.Errorf("get hash data failed: %w", err)
-	}
-
-	// Отправляем запрос с хэшированием
 	req := s.Client.R().
 		SetBody(requestBody).
 		SetHeader("Content-Type", "application/json").
@@ -278,7 +270,7 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 		SetHeader("Accept-Encoding", "gzip")
 
 	// Добавляем хеш заголовок
-	req = s.addHashHeaders(req, hashData)
+	req = s.addHashHeaders(req, requestBody)
 
 	resp, err := req.Post(url)
 	if err != nil {
@@ -297,7 +289,6 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	return nil
 }
 
-// prepareBatchRequestBody подготавливает тело запроса и возвращает также JSON для хэширования
 func (s *MetricsSenderService) prepareBatchRequestBody(metrics []models.Metrics) ([]byte, error) {
 	jsonData, err := s.marshalMetrics(metrics)
 	if err != nil {
@@ -318,10 +309,6 @@ func (s *MetricsSenderService) marshalMetrics(metrics []models.Metrics) ([]byte,
 		return nil, fmt.Errorf("marshal metrics failed: %w", err)
 	}
 	return jsonData, nil
-}
-
-func (s *MetricsSenderService) getBatchHashData(metrics []models.Metrics) ([]byte, error) {
-	return s.marshalMetrics(metrics)
 }
 
 // compressData сжимает данные с помощью gzip
@@ -388,8 +375,7 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Length", strconv.Itoa(buf.Len()))
 
-	// Добавляем хеш заголовок (хеш считается от JSON данных, не сжатых)
-	req = s.addHashHeaders(req, jsonData)
+	req = s.addHashHeaders(req, buf.Bytes())
 
 	resp, err := req.Post(url)
 	if err != nil {
