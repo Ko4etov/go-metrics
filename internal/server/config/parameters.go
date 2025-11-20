@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -36,8 +35,6 @@ func parseServerParameters() *ServerParameters {
 	hashKeyParameter()
 
 	flag.Parse()
-
-	logger.Logger.Infof("address=%v, storeMetricsInterval=%v, fileStorageMetricsPath=%v, restoreMetrics=%v, dbAddress=%v", address, storeMetricsInterval, fileStorageMetricsPath, restoreMetrics, dbAddress)
 
 	return &ServerParameters{
 		Address: address,

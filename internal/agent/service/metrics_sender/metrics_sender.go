@@ -220,17 +220,10 @@ func (s *MetricsSenderService) isRetriableByContent(err error) bool {
 	return false
 }
 
-// isRetriableHTTPStatus проверяет HTTP статусы ошибок
 func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
-	if respErr, ok := err.(interface{ Response() *resty.Response }); ok {
-		if resp := respErr.Response(); resp != nil {
-			statusCode := resp.StatusCode()
-			// 5xx ошибки и 429 (Too Many Requests) - retriable
-			return (statusCode >= 400 && statusCode <= 499 && statusCode != 429) || 
-			       (statusCode >= 500 && statusCode <= 599)
-		}
-	}
-	return false
+	errorStr := strings.ToLower(err.Error())
+    
+    return strings.Contains(errorStr, "server error: 400")
 }
 
 func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]models.Metrics {

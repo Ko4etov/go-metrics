@@ -95,7 +95,6 @@ func WithHashing(config *HashConfig) func(http.Handler) http.Handler {
                         http.Error(res, "Invalid hash signature", http.StatusBadRequest)
                         return
                     }
-                    logger.Logger.Infof("Hash validation successful")
                 }
             }
 
