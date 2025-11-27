@@ -3,10 +3,17 @@ package agent
 import (
 	"testing"
 	"time"
+
+	"github.com/Ko4etov/go-metrics/internal/agent/config"
 )
 
 func TestNewAgent(t *testing.T) {
-	agent := New(2*time.Second, 10*time.Second, "localhost:8080")
+	config := &config.AgentConfig{
+		ReportInterval: time.Duration(10)*time.Second,
+		PollInterval: time.Duration(2)*time.Second,
+		Address: ":8080",
+	}
+	agent := New(config)
 
 	if agent == nil {
 		t.Fatal("NewAgent() returned nil")
@@ -30,7 +37,12 @@ func TestNewAgent(t *testing.T) {
 }
 
 func TestAgent_PollMetrics(t *testing.T) {
-	agent := New(100*time.Millisecond, 1*time.Second, ":8080")
+	config := &config.AgentConfig{
+		PollInterval: 100*time.Millisecond,
+		ReportInterval: time.Duration(1)*time.Second,
+		Address: ":8080",
+	}
+	agent := New(config)
 
 	// Запускаем агент в отдельной горутине
 	go agent.Run()

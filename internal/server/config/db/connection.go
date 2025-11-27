@@ -6,14 +6,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewDBConnection(address string) *pgxpool.Pool {
+func NewDBConnection(address string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(
 		context.Background(),
 		address)
 
 	if err != nil {
-		panic(err)
+		return nil, err;
 	}
 
-	return pool
+	return pool, nil
 }
