@@ -4,25 +4,33 @@ import (
 	"flag"
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 var address string = ":8080"
 var reportInterval int = 2
 var pollInterval int = 10
 var hashKey string
+var rateLimit int = 1
 
 type AgentParameters struct {
 	Address string
 	ReportInterval int
 	PollInterval int
 	HashKey string
+	RateLimit int
+
 }
 
 func parseAgentParameters() *AgentParameters {
+	godotenv.Load()
+	
 	addressParameter()
 	reportIntervalParameter()
 	pollIntervalParameter()
 	hashKeyParameter()
+	rateLimitParameter()
 
 	flag.Parse()
 
@@ -31,7 +39,19 @@ func parseAgentParameters() *AgentParameters {
 		ReportInterval: reportInterval,
 		PollInterval: pollInterval,
 		HashKey: hashKey,
+		RateLimit: rateLimit,
 	}
+}
+
+
+func rateLimitParameter() {
+	if env := os.Getenv("RATE_LIMIT"); env != "" {
+		if val, err := strconv.Atoi(env); err == nil {
+			rateLimit = val
+		}
+	}
+
+	flag.IntVar(&rateLimit, "l", rateLimit, "Hash key")
 }
 
 func hashKeyParameter() {

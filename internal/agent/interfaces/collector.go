@@ -6,6 +6,5 @@ type Collector interface {
 	Collect()
 	Metrics() []models.Metrics
 	PollCountReset()
-	PollCountIncrement()
 	PollCount() int
 }
