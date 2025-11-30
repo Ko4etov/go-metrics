@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -27,8 +28,9 @@ type Agent struct {
 
 // NewAgent создает новый экземпляр агента
 func New(config *config.AgentConfig) *Agent {
+	log.Printf("%v", config)
 	collector := collector.New()
-	sender := metricssender.New(config.Address, config.HashKey)
+	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Agent{
@@ -53,32 +55,50 @@ func (a *Agent) Run() {
 	a.isRunning = true
 	a.mu.Unlock()
 
-	pollTicker := time.NewTicker(a.pollInterval)
-	reportTicker := time.NewTicker(a.reportInterval)
+	// Запускаем отдельные горутины для сбора и отправки
+	a.wg.Add(2)
+	go a.runPolling()
+	go a.runReporting()
 
-	defer func() {
-		pollTicker.Stop()
-		reportTicker.Stop()
+	a.wg.Wait()
 
-		a.mu.Lock()
-		a.isRunning = false
-		a.mu.Unlock()
-	}()
+	a.mu.Lock()
+	a.isRunning = false
+	a.mu.Unlock()
+}
 
-	a.wg.Add(1)
+func (a *Agent) runPolling() {
 	defer a.wg.Done()
+	
+	ticker := time.NewTicker(a.pollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
-			case <-a.ctx.Done():
-				return
-			case <-pollTicker.C:
-				a.pollMetrics()
-			case <-reportTicker.C:
-				a.reportMetrics()
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.pollMetrics()
 		}
 	}
 }
+
+func (a *Agent) runReporting() {
+	defer a.wg.Done()
+	
+	ticker := time.NewTicker(a.reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.reportMetrics()
+		}
+	}
+}
+
 func (a *Agent) Stop() {
 	a.mu.RLock()
 	if !a.isRunning {
@@ -88,6 +108,10 @@ func (a *Agent) Stop() {
 	a.mu.RUnlock()
 
 	a.cancel()
+	
+	if sender, ok := a.sender.(interface{ Stop() }); ok {
+		sender.Stop()
+	}
 	
 	a.wg.Wait()
 }

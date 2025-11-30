@@ -7,6 +7,7 @@ type AgentConfig struct {
 	PollInterval time.Duration
 	ReportInterval time.Duration
 	HashKey string
+	RateLimit int
 }
 
 func New() *AgentConfig {
@@ -17,5 +18,6 @@ func New() *AgentConfig {
 		PollInterval: time.Duration(parameters.PollInterval)*time.Second,
 		ReportInterval: time.Duration(parameters.ReportInterval)*time.Second,
 		HashKey: parameters.HashKey,
+		RateLimit: parameters.RateLimit,
 	}
 }

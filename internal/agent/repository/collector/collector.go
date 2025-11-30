@@ -3,23 +3,36 @@ package collector
 import (
 	"math/rand"
 	"runtime"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type MetricsCollector struct {
-	metrics   map[string]models.Metrics
+	mu          sync.RWMutex
+	metrics     map[string]models.Metrics
 	pollCounter int
+	rand        *rand.Rand
 }
 
 func New() *MetricsCollector {
 	return &MetricsCollector{
-		metrics: make(map[string]models.Metrics),
+		metrics:     make(map[string]models.Metrics),
 		pollCounter: 0,
+		rand:        rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 func (c *MetricsCollector) Collect() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.pollCounter++
+
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
 
@@ -53,15 +66,14 @@ func (c *MetricsCollector) Collect() {
 		"TotalAlloc":    float64(stats.TotalAlloc),
 	}
 
-	c.PollCountIncrement()
-
-	pollCount := c.PollCount()
+	pollCount := c.pollCounter
 
 	for name, value := range runtimeMetrics {
+		valueCopy := value
 		c.metrics[name] = models.Metrics{
 			ID:    name,
 			MType: models.Gauge,
-			Value: &value,
+			Value: &valueCopy,
 		}
 	}
 
@@ -73,15 +85,64 @@ func (c *MetricsCollector) Collect() {
 	}
 
 	randValue := rand.Float64() * 100
-
 	c.metrics["RandomValue"] = models.Metrics{
 		ID:    "RandomValue",
 		MType: models.Gauge,
 		Value: &randValue,
 	}
+
+	c.collectGopsutilMetrics()
+}
+
+func (c *MetricsCollector) collectGopsutilMetrics() {
+	if memStats, err := mem.VirtualMemory(); err == nil {
+		totalMemory := float64(memStats.Total)
+		freeMemory := float64(memStats.Free)
+
+		c.metrics["TotalMemory"] = models.Metrics{
+			ID:    "TotalMemory",
+			MType: models.Gauge,
+			Value: &totalMemory,
+		}
+
+		c.metrics["FreeMemory"] = models.Metrics{
+			ID:    "FreeMemory",
+			MType: models.Gauge,
+			Value: &freeMemory,
+		}
+	}
+
+	// CPU utilization
+	if cpuPercent, err := cpu.Percent(time.Second, false); err == nil && len(cpuPercent) > 0 {
+		cpuUtilization := cpuPercent[0]
+		c.metrics["CPUutilization1"] = models.Metrics{
+			ID:    "CPUutilization1",
+			MType: models.Gauge,
+			Value: &cpuUtilization,
+		}
+	}
+
+	// CPU utilization per core
+	if cpuPercent, err := cpu.Percent(time.Second, true); err == nil {
+		for i, percent := range cpuPercent {
+			percentCopy := percent
+			c.metrics[formatCPUutilization(i)] = models.Metrics{
+				ID:    formatCPUutilization(i),
+				MType: models.Gauge,
+				Value: &percentCopy,
+			}
+		}
+	}
+}
+
+func formatCPUutilization(index int) string {
+	return "CPUutilization" + strconv.Itoa(index+1)
 }
 
 func (c *MetricsCollector) Metrics() []models.Metrics {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	metrics := make([]models.Metrics, 0, len(c.metrics))
 	for _, metric := range c.metrics {
 		metrics = append(metrics, metric)
@@ -91,13 +152,15 @@ func (c *MetricsCollector) Metrics() []models.Metrics {
 }
 
 func (c *MetricsCollector) PollCountReset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.pollCounter = 0
 }
 
-func (c *MetricsCollector) PollCountIncrement() {
-	c.pollCounter++ 
-}
-
 func (c *MetricsCollector) PollCount() int {
-	return c.pollCounter 
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.pollCounter
 }

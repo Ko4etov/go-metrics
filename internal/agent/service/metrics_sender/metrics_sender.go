@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
@@ -27,22 +28,59 @@ type MetricsSenderService struct {
 	BatchSize     int
 	MaxRetries    int
 	RetryDelays   []time.Duration
+	RateLimit     int
+	jobs          chan []models.Metrics
+	wg            sync.WaitGroup
 }
 
 // New создает новый отправитель
-func New(serverAddress string, hashKey string) *MetricsSenderService {
+func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderService {
 	client := resty.New().
 		SetTimeout(5 * time.Second).
 		SetRetryCount(2)
 
-	return &MetricsSenderService{
+	sender := &MetricsSenderService{
 		ServerAddress: serverAddress,
 		HashKey:       hashKey,
 		Client:        client,
 		BatchSize:     10,
 		MaxRetries:    3,
 		RetryDelays:   []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second},
+		RateLimit:     rateLimit,
+		jobs:          make(chan []models.Metrics, rateLimit),
 	}
+
+	sender.startWorkers()
+
+	return sender
+}
+
+func (s *MetricsSenderService) startWorkers() {
+	for i := 0; i < s.RateLimit; i++ {
+		s.wg.Add(1)
+		go s.worker(i)
+	}
+}
+
+func (s *MetricsSenderService) worker(id int) {
+    defer s.wg.Done()
+
+    for metrics := range s.jobs {
+        log.Printf("Worker %d processing batch with %d metrics", id, len(metrics))
+        
+        // Пытаемся отправить весь батч одним запросом
+        if err := s.sendWithRetry(func() error {
+            return s.sendBatch(metrics) // ← ОТПРАВЛЯЕМ ЦЕЛЫЙ БАТЧ!
+        }); err != nil {
+            log.Printf("Worker %d: batch send failed: %v", id, err)
+            
+            // ТОЛЬКО при ошибке батча отправляем по одной
+            log.Printf("Worker %d: falling back to individual sends", id)
+            s.sendSingleMetrics(metrics)
+        } else {
+            log.Printf("Worker %d: batch of %d metrics sent successfully", id, len(metrics))
+        }
+    }
 }
 
 // calculateHash вычисляет HMAC-SHA256 хеш для данных
@@ -93,18 +131,24 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 
 // SendMetrics отправляет все метрики на сервер батчами с хэшированием
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
-	if len(metrics) == 0 {
-		log.Printf("No metrics to send")
-		return
-	}
+    if len(metrics) == 0 {
+        log.Printf("No metrics to send")
+        return
+    }
 
-	if len(metrics) <= s.BatchSize {
-		s.sendSingleMetrics(metrics)
-		return
-	}
-
-	// Отправляем батчами
-	s.sendBatchMetrics(metrics)
+    // Разбиваем на батчи
+    batches := s.splitIntoBatches(metrics)
+    log.Printf("Split %d metrics into %d batches", len(metrics), len(batches))
+    
+    // Отправляем каждый батч в worker pool
+    for i, batch := range batches {
+        select {
+        case s.jobs <- batch:
+            log.Printf("Batch %d/%d (%d metrics) queued for sending", i+1, len(batches), len(batch))
+        default:
+            log.Printf("Rate limit exceeded, dropping batch %d of %d metrics", i+1, len(batch))
+        }
+    }
 }
 
 func (s *MetricsSenderService) sendSingleMetrics(metrics []models.Metrics) {
@@ -115,25 +159,6 @@ func (s *MetricsSenderService) sendSingleMetrics(metrics []models.Metrics) {
 			log.Printf("Error sending metric %s after %d retries: %v", metric.ID, s.MaxRetries, err)
 		} else {
 			log.Printf("Metric sent successfully: %s", metric.ID)
-		}
-	}
-}
-
-func (s *MetricsSenderService) sendBatchMetrics(metrics []models.Metrics) {
-	batches := s.splitIntoBatches(metrics)
-
-	for i, batch := range batches {
-		log.Printf("Sending batch %d/%d with %d metrics", i+1, len(batches), len(batch))
-
-		if err := s.sendWithRetry(func() error {
-			return s.sendBatch(batch)
-		}); err != nil {
-			log.Printf("Error sending batch %d after %d retries: %v", i+1, s.MaxRetries, err)
-
-			// При ошибке батча отправляем метрики по одной с retry
-			s.sendSingleMetrics(batch)
-		} else {
-			log.Printf("Batch %d sent successfully", i+1)
 		}
 	}
 }
@@ -375,4 +400,9 @@ func (s *MetricsSenderService) BuildURL(metric models.Metrics) string {
 
 	return fmt.Sprintf("http://%s/update/%s/%s/%s",
 		s.ServerAddress, metric.MType, metric.ID, value)
+}
+
+func (s *MetricsSenderService) Stop() {
+    close(s.jobs)
+    s.wg.Wait()
 }
