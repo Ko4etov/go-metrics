@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -14,6 +13,7 @@ var storeMetricsInterval int = 300
 var fileStorageMetricsPath string = "metrics.json"
 var restoreMetrics bool = true
 var dbAddress string
+var hashKey string
 
 type ServerParameters struct {
 	Address string
@@ -21,6 +21,7 @@ type ServerParameters struct {
 	FileStorageMetricsPath string
 	RestoreMetrics bool
 	DBAddress string
+	HashKey string
 }
 
 func parseServerParameters() *ServerParameters {
@@ -31,10 +32,9 @@ func parseServerParameters() *ServerParameters {
 	fileStorageMetricsPathParameter()
 	restoreMetricsParameter()
 	dbAddressParameter()
+	hashKeyParameter()
 
 	flag.Parse()
-
-	logger.Logger.Infof("address=%v, storeMetricsInterval=%v, fileStorageMetricsPath=%v, restoreMetrics=%v, dbAddress=%v", address, storeMetricsInterval, fileStorageMetricsPath, restoreMetrics, dbAddress)
 
 	return &ServerParameters{
 		Address: address,
@@ -42,7 +42,16 @@ func parseServerParameters() *ServerParameters {
 		FileStorageMetricsPath: fileStorageMetricsPath,
 		RestoreMetrics: restoreMetrics,
 		DBAddress: dbAddress,
+		HashKey: hashKey,
 	}
+}
+
+func hashKeyParameter() {
+	if env := os.Getenv("KEY"); env != "" {
+		hashKey = env
+	}
+
+	flag.StringVar(&hashKey, "k", hashKey, "Hash key")
 }
 
 func dbAddressParameter() {
