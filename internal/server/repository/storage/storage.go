@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -51,17 +50,9 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 
 func (ms *MetricsStorage) LoadSavedMetrics() {
 	if ms.config.ConnectionPool != nil {
-		if err := ms.LoadFromDatabase(); err != nil {
-			logger.Logger.Infof("Warning: failed to load metrics from database: %v\n", err)
-		} else {
-			logger.Logger.Infof("Successfully loaded metrics from database")
-		}
+		ms.LoadFromDatabase()
 	} else if ms.config.FileStorageMetricsPath != ""  {
-		if err := ms.LoadFromFile(); err != nil {
-			logger.Logger.Infof("Warning: failed to load metrics from file: %v\n", err)
-		} else {
-			logger.Logger.Infof("Successfully loaded metrics from %s\n", ms.config.FileStorageMetricsPath)
-		}
+		ms.LoadFromFile()
 	}
 }
 
@@ -413,7 +404,6 @@ func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName
 		// Если это не последняя попытка, ждем перед повторной попыткой
 		if attempt < maxRetries {
 			delay := retryDelays[attempt]
-			logger.Logger.Warnf("Database %s attempt %d failed: %v. Retrying in %v", operationName, attempt+1, err, delay)
 			time.Sleep(delay)
 		}
 	}

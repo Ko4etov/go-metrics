@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"strconv"
@@ -58,28 +57,17 @@ func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderServ
 func (s *MetricsSenderService) startWorkers() {
 	for i := 0; i < s.RateLimit; i++ {
 		s.wg.Add(1)
-		go s.worker(i)
+		go s.worker()
 	}
 }
 
-func (s *MetricsSenderService) worker(id int) {
+func (s *MetricsSenderService) worker() {
     defer s.wg.Done()
 
     for metrics := range s.jobs {
-        log.Printf("Worker %d processing batch with %d metrics", id, len(metrics))
-        
-        // Пытаемся отправить весь батч одним запросом
-        if err := s.sendWithRetry(func() error {
-            return s.sendBatch(metrics) // ← ОТПРАВЛЯЕМ ЦЕЛЫЙ БАТЧ!
-        }); err != nil {
-            log.Printf("Worker %d: batch send failed: %v", id, err)
-            
-            // ТОЛЬКО при ошибке батча отправляем по одной
-            log.Printf("Worker %d: falling back to individual sends", id)
-            s.sendSingleMetrics(metrics)
-        } else {
-            log.Printf("Worker %d: batch of %d metrics sent successfully", id, len(metrics))
-        }
+        s.sendWithRetry(func() error {
+            return s.sendBatch(metrics)
+        })
     }
 }
 
@@ -99,9 +87,6 @@ func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *
 	if s.HashKey != "" && len(data) > 0 {
 		hash := s.calculateHash(data)
 		req.SetHeader("HashSHA256", hash)
-		log.Printf("Added hash header for %d bytes of data", len(data))
-		log.Printf("Data for hash: %s", string(data))
-		log.Printf("Computed hash: %s", hash)
 	}
 	return req
 }
@@ -114,7 +99,6 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 
 	receivedHash := resp.Header().Get("HashSHA256")
 	if receivedHash == "" {
-		log.Printf("Warning: No hash header in response from server")
 		return nil // Сервер может не отправлять хеш для некоторых ответов
 	}
 
@@ -125,42 +109,25 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 			receivedHash, expectedHash)
 	}
 
-	log.Printf("Response hash verified successfully")
 	return nil
 }
 
 // SendMetrics отправляет все метрики на сервер батчами с хэшированием
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
     if len(metrics) == 0 {
-        log.Printf("No metrics to send")
         return
     }
 
     // Разбиваем на батчи
     batches := s.splitIntoBatches(metrics)
-    log.Printf("Split %d metrics into %d batches", len(metrics), len(batches))
     
     // Отправляем каждый батч в worker pool
-    for i, batch := range batches {
+    for _, batch := range batches {
         select {
-        case s.jobs <- batch:
-            log.Printf("Batch %d/%d (%d metrics) queued for sending", i+1, len(batches), len(batch))
-        default:
-            log.Printf("Rate limit exceeded, dropping batch %d of %d metrics", i+1, len(batch))
+			case s.jobs <- batch:
+			default:
         }
     }
-}
-
-func (s *MetricsSenderService) sendSingleMetrics(metrics []models.Metrics) {
-	for _, metric := range metrics {
-		if err := s.sendWithRetry(func() error {
-			return s.SendMetricJSON(metric)
-		}); err != nil {
-			log.Printf("Error sending metric %s after %d retries: %v", metric.ID, s.MaxRetries, err)
-		} else {
-			log.Printf("Metric sent successfully: %s", metric.ID)
-		}
-	}
 }
 
 func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
@@ -174,7 +141,6 @@ func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
 
 		lastErr = err
 
-		// Проверяем, является ли ошибка retriable
 		if !s.isRetriableError(err) {
 			return fmt.Errorf("non-retriable error: %w", err)
 		}
@@ -182,7 +148,6 @@ func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
 		// Если это не последняя попытка, ждем перед повторной попыткой
 		if attempt < s.MaxRetries {
 			delay := s.RetryDelays[attempt]
-			log.Printf("Attempt %d failed: %v. Retrying in %v", attempt+1, err, delay)
 			time.Sleep(delay)
 		}
 	}

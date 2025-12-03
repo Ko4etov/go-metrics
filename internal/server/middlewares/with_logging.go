@@ -3,9 +3,6 @@ package middlewares
 import (
 	"bytes"
 	"net/http"
-	"time"
-
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 // loggingWriter перехватывает ответ для логирования
@@ -43,18 +40,6 @@ func (w *loggingWriter) WriteHeader(statusCode int) {
 // WithLogging middleware для логирования запросов и ответов
 func WithLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		start := time.Now()
-
-		// Логируем информацию о запросе
-		requestInfo := map[string]interface{}{
-			"uri":           req.RequestURI,
-			"method":        req.Method,
-			"content_type":  req.Header.Get("Content-Type"),
-			"content_length": req.Header.Get("Content-Length"),
-			"user_agent":    req.Header.Get("User-Agent"),
-		}
-
-		logger.Logger.Infoln("request_started", requestInfo)
 
 		// Создаем writer для перехвата ответа
 		logWriter := newLoggingWriter(res)
@@ -71,21 +56,7 @@ func WithLogging(next http.Handler) http.Handler {
 
 		res.WriteHeader(logWriter.statusCode)
 		if _, err := res.Write(logWriter.buffer.Bytes()); err != nil {
-			logger.Logger.Errorln("Error writing response:", err)
 			return
 		}
-
-		// Логируем информацию о ответе
-		duration := time.Since(start)
-		responseInfo := map[string]interface{}{
-			"uri":         req.RequestURI,
-			"method":      req.Method,
-			"duration":    duration,
-			"status":      logWriter.statusCode,
-			"size":        logWriter.size,
-			"duration_ms": duration.Milliseconds(),
-		}
-
-		logger.Logger.Infoln("request_completed", responseInfo)
 	})
 }

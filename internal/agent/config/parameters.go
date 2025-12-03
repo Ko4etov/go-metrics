@@ -46,10 +46,14 @@ func parseAgentParameters() *AgentParameters {
 func rateLimitParameter() int {
 	rateLimit := rateLimit
 
-	if env := os.Getenv("RATE_LIMIT"); env != "" {
-		if val, err := strconv.Atoi(env); err == nil {
-			rateLimit = val
+	if env, exist := os.LookupEnv("RATE_LIMIT"); exist {
+		val, err := strconv.Atoi(env)
+
+		if err != nil {
+			os.Exit(1)
 		}
+
+		rateLimit = val
 	}
 
 	flag.IntVar(&rateLimit, "l", rateLimit, "Hash key")
@@ -59,7 +63,8 @@ func rateLimitParameter() int {
 
 func hashKeyParameter() string {
 	hashKey := ""
-	if env := os.Getenv("KEY"); env != "" {
+
+	if env, exist := os.LookupEnv("KEY"); exist {
 		hashKey = env
 	}
 
@@ -71,7 +76,7 @@ func hashKeyParameter() string {
 func addressParameter() string {
 	address := address
 
-	if addressEnv := os.Getenv("ADDRESS"); addressEnv != "" {
+	if addressEnv, exist := os.LookupEnv("ADDRESS"); exist {
 		address = addressEnv
 		return address
 	}
@@ -108,9 +113,11 @@ func pollIntervalParameter() int {
 		return pollInterval
 	}
 
-	if result, err := strconv.ParseInt(pollIntervalEnv, 0, 64); err == nil {
-		pollInterval = int(result)
+	result, err := strconv.ParseInt(pollIntervalEnv, 0, 64)
+
+	if err != nil {
+		os.Exit(1)
 	}
 
-	return pollInterval
+	return int(result)
 }

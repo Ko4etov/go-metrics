@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -37,6 +36,5 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
-	log.Println("Database migrations applied successfully")
 	return nil
 }

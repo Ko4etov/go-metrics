@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -28,7 +27,6 @@ type Agent struct {
 
 // NewAgent создает новый экземпляр агента
 func New(config *config.AgentConfig) *Agent {
-	log.Printf("%v", config)
 	collector := collector.New()
 	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
 	ctx, cancel := context.WithCancel(context.Background())

@@ -3,6 +3,7 @@ package middlewares
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -62,7 +63,7 @@ func decompressRequestBody(req *http.Request) error {
 
 	decompressedBody, err := io.ReadAll(gzReader)
 	if err != nil {
-		return err
+		return fmt.Errorf("error decompressing request: %w", err)
 	}
 
 	req.Body = io.NopCloser(bytes.NewBuffer(decompressedBody))
@@ -93,7 +94,7 @@ func WithCompression(next http.Handler) http.Handler {
         // Декомпрессия входящего запроса если нужно
         if shouldDecompressRequest(req) {
             if err := decompressRequestBody(req); err != nil {
-                http.Error(res, "Error decompressing request: "+err.Error(), http.StatusBadRequest)
+                http.Error(res, err.Error(), http.StatusBadRequest)
                 return
             }
         }
