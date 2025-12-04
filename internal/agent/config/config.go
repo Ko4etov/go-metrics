@@ -1,9 +1,13 @@
 package config
 
+import "time"
+
 type AgentConfig struct {
 	Address string
-	PollInterval int
-	ReportInterval int
+	PollInterval time.Duration
+	ReportInterval time.Duration
+	HashKey string
+	RateLimit int
 }
 
 func New() *AgentConfig {
@@ -11,7 +15,9 @@ func New() *AgentConfig {
 
 	return &AgentConfig{
 		Address: parameters.Address,
-		PollInterval: parameters.PollInterval,
-		ReportInterval: parameters.ReportInterval,
+		PollInterval: time.Duration(parameters.PollInterval)*time.Second,
+		ReportInterval: time.Duration(parameters.ReportInterval)*time.Second,
+		HashKey: parameters.HashKey,
+		RateLimit: parameters.RateLimit,
 	}
 }

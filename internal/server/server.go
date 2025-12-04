@@ -25,8 +25,15 @@ func (s *Server) Run() {
 		FileStorageMetricsPath: s.config.FileStorageMetricsPath,
 		ConnectionPool: s.config.ConnectionPool,
 	}
+
 	metricsStorage := storage.New(storageConfig)
-	serverRouter := router.New(metricsStorage, s.config.ConnectionPool)
+
+	routerConfig := &router.RouteConfig{
+		Storage: metricsStorage,
+		Pgx: s.config.ConnectionPool,
+		HashKey: s.config.HashKey,
+	}
+	serverRouter := router.New(routerConfig)
 
 	if s.config.StoreMetricsInterval > 0 {
 		metricsStorage.StartPeriodicSave()

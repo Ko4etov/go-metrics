@@ -5,15 +5,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/joho/godotenv"
 )
 
-var address string = ":8080"
-var storeMetricsInterval int = 300
-var fileStorageMetricsPath string = "metrics.json"
-var restoreMetrics bool = true
-var dbAddress string
+const address string = ":8080"
+const storeMetricsInterval int = 300
+const fileStorageMetricsPath string = "metrics.json"
+const restoreMetrics bool = true
 
 type ServerParameters struct {
 	Address string
@@ -21,68 +19,105 @@ type ServerParameters struct {
 	FileStorageMetricsPath string
 	RestoreMetrics bool
 	DBAddress string
+	HashKey string
 }
 
 func parseServerParameters() *ServerParameters {
 	godotenv.Load()
 	
-	addressParameter()
-	storeMetricsIntervalParameter()
-	fileStorageMetricsPathParameter()
-	restoreMetricsParameter()
-	dbAddressParameter()
+	addressParameter := addressParameter()
+	storeMetricsIntervalParameter := storeMetricsIntervalParameter()
+	fileStorageMetricsPathParameter := fileStorageMetricsPathParameter()
+	restoreMetricsParameter := restoreMetricsParameter()
+	dbAddressParameter := dbAddressParameter()
+	hashKeyParameter := hashKeyParameter()
 
 	flag.Parse()
 
-	logger.Logger.Infof("address=%v, storeMetricsInterval=%v, fileStorageMetricsPath=%v, restoreMetrics=%v, dbAddress=%v", address, storeMetricsInterval, fileStorageMetricsPath, restoreMetrics, dbAddress)
-
 	return &ServerParameters{
-		Address: address,
-		StoreMetricsInterval: storeMetricsInterval,
-		FileStorageMetricsPath: fileStorageMetricsPath,
-		RestoreMetrics: restoreMetrics,
-		DBAddress: dbAddress,
+		Address: addressParameter,
+		StoreMetricsInterval: storeMetricsIntervalParameter,
+		FileStorageMetricsPath: fileStorageMetricsPathParameter,
+		RestoreMetrics: restoreMetricsParameter,
+		DBAddress: dbAddressParameter,
+		HashKey: hashKeyParameter,
 	}
 }
 
-func dbAddressParameter() {
-	if env := os.Getenv("DATABASE_DSN"); env != "" {
+func hashKeyParameter() string {
+	env, exist := os.LookupEnv("KEY")
+
+	if !exist {
+		// Значения по умолчанию нет, значит выходим
+		os.Exit(2)
+	}
+
+	flag.StringVar(&env, "k", env, "Hash key")
+
+	return env
+}
+
+func dbAddressParameter() string {
+	dbAddress := ""
+
+	if env, exist := os.LookupEnv("DATABASE_DSN"); exist {
 		dbAddress = env
 	}
 
 	flag.StringVar(&dbAddress, "d", dbAddress, "DB address")
+
+	return dbAddress
 }
 
-func addressParameter() {
-	if env := os.Getenv("ADDRESS"); env != "" {
+func addressParameter() string {
+	address := address
+
+	if env, exist := os.LookupEnv("ADDRESS"); exist {
 		address = env
 	}
 	flag.StringVar(&address, "a", address, "Server address")
+
+	return address
 }
 
-func storeMetricsIntervalParameter() {
-	if env := os.Getenv("STORE_INTERVAL"); env != "" {
-		if val, err := strconv.Atoi(env); err == nil {
+func storeMetricsIntervalParameter() int {
+	storeMetricsInterval := storeMetricsInterval
+
+	if storeMetricsIntervalEnv, exist := os.LookupEnv("STORE_INTERVAL"); exist {
+		if val, err := strconv.Atoi(storeMetricsIntervalEnv); err == nil {
 			storeMetricsInterval = val
 		}
 	}
 	flag.IntVar(&storeMetricsInterval, "i", storeMetricsInterval, "store metrics interval in seconds")
+
+	return storeMetricsInterval
 }
 
-func fileStorageMetricsPathParameter() {
-	if fileStorageMetricsPathEnv := os.Getenv("FILE_STORAGE_PATH"); fileStorageMetricsPathEnv != "" {
+func fileStorageMetricsPathParameter() string {
+	fileStorageMetricsPath := fileStorageMetricsPath
+
+	if fileStorageMetricsPathEnv, exist := os.LookupEnv("FILE_STORAGE_PATH"); exist {
 		fileStorageMetricsPath = fileStorageMetricsPathEnv
-		return
+		return fileStorageMetricsPath
 	}
 
 	flag.StringVar(&fileStorageMetricsPath, "f", fileStorageMetricsPath, "file storage path")
+
+	return fileStorageMetricsPath
 }
 
-func restoreMetricsParameter() {
-	if env := os.Getenv("RESTORE"); env != "" {
-		if val, err := strconv.ParseBool(env); err == nil {
+func restoreMetricsParameter() bool {
+	restoreMetrics := restoreMetrics
+
+	restoreMetricsEnv, exist := os.LookupEnv("RESTORE")
+
+	if exist {
+		if val, err := strconv.ParseBool(restoreMetricsEnv); err == nil {
 			restoreMetrics = val
 		}
 	}
+
 	flag.BoolVar(&restoreMetrics, "r", restoreMetrics, "restore metrics")
+
+	return restoreMetrics
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Ko4etov/go-metrics/internal/agent/config"
 	"github.com/Ko4etov/go-metrics/internal/agent/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
 	metricssender "github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
@@ -25,15 +26,15 @@ type Agent struct {
 }
 
 // NewAgent создает новый экземпляр агента
-func New(pollInterval time.Duration, reportInterval time.Duration, serverAddress string) *Agent {
+func New(config *config.AgentConfig) *Agent {
 	collector := collector.New()
-	sender := metricssender.New(serverAddress)
+	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Agent{
-		pollInterval:       pollInterval,
-		reportInterval:     reportInterval,
-		serverAddress:      serverAddress,
+		pollInterval:       config.PollInterval,
+		reportInterval:     config.ReportInterval,
+		serverAddress:      config.Address,
 		collector:          collector,
 		sender:             sender,
 		ctx:                ctx,
@@ -52,32 +53,50 @@ func (a *Agent) Run() {
 	a.isRunning = true
 	a.mu.Unlock()
 
-	pollTicker := time.NewTicker(a.pollInterval)
-	reportTicker := time.NewTicker(a.reportInterval)
+	// Запускаем отдельные горутины для сбора и отправки
+	a.wg.Add(2)
+	go a.runPolling()
+	go a.runReporting()
 
-	defer func() {
-		pollTicker.Stop()
-		reportTicker.Stop()
+	a.wg.Wait()
 
-		a.mu.Lock()
-		a.isRunning = false
-		a.mu.Unlock()
-	}()
+	a.mu.Lock()
+	a.isRunning = false
+	a.mu.Unlock()
+}
 
-	a.wg.Add(1)
+func (a *Agent) runPolling() {
 	defer a.wg.Done()
+	
+	ticker := time.NewTicker(a.pollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
-			case <-a.ctx.Done():
-				return
-			case <-pollTicker.C:
-				a.pollMetrics()
-			case <-reportTicker.C:
-				a.reportMetrics()
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.pollMetrics()
 		}
 	}
 }
+
+func (a *Agent) runReporting() {
+	defer a.wg.Done()
+	
+	ticker := time.NewTicker(a.reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.reportMetrics()
+		}
+	}
+}
+
 func (a *Agent) Stop() {
 	a.mu.RLock()
 	if !a.isRunning {
@@ -87,6 +106,10 @@ func (a *Agent) Stop() {
 	a.mu.RUnlock()
 
 	a.cancel()
+	
+	if sender, ok := a.sender.(interface{ Stop() }); ok {
+		sender.Stop()
+	}
 	
 	a.wg.Wait()
 }

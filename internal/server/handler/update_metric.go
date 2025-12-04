@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,8 +61,6 @@ func (h *Handler) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	log.Printf("metric_type = %T, metric_name = %T, metric_value = %T\n", metricType, metricName, metricValue)
 
 	res.WriteHeader(http.StatusOK)
 }
