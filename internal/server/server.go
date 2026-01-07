@@ -34,7 +34,7 @@ func (s *Server) Run() {
 	var auditSvc *audit.AuditService
 	
 	// Проверяем, нужно ли включать аудит
-	if s.config.AuditFile != "" || s.config.AuditUrl != "" {
+	if s.config.AuditFile != "" || s.config.AuditURL != "" {
 		auditSvc = audit.NewAuditService()
 		
 		if s.config.AuditFile != "" {
@@ -47,8 +47,8 @@ func (s *Server) Run() {
 			auditSvc.Subscribe(fileAuditor)
 		}
 		
-		if s.config.AuditUrl != "" {
-			httpAuditor := audit.NewHTTPAuditor(s.config.AuditUrl)
+		if s.config.AuditURL != "" {
+			httpAuditor := audit.NewHTTPAuditor(s.config.AuditURL)
 			auditSvc.Subscribe(httpAuditor)
 		}
 	}

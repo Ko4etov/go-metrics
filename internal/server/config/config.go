@@ -16,7 +16,7 @@ type ServerConfig struct {
 	ConnectionPool *pgxpool.Pool
 	HashKey string
 	AuditFile string
-	AuditUrl string
+	AuditURL string
 }
 
 func New() (*ServerConfig, error) {
@@ -54,6 +54,6 @@ func New() (*ServerConfig, error) {
 		ConnectionPool: poll,
 		HashKey: serverParameters.HashKey,
 		AuditFile: serverParameters.AuditFile,
-		AuditUrl: serverParameters.AuditUrl,
+		AuditURL: serverParameters.AuditURL,
 	}, nil
 }

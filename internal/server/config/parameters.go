@@ -21,7 +21,7 @@ type ServerParameters struct {
 	DBAddress string
 	HashKey string
 	AuditFile string
-	AuditUrl string
+	AuditURL string
 }
 
 func parseServerParameters() *ServerParameters {
@@ -34,7 +34,7 @@ func parseServerParameters() *ServerParameters {
 	dbAddressParameter := dbAddressParameter()
 	hashKeyParameter := hashKeyParameter()
 	auditFileParameter := auditFileParameter()
-	auditUrlParameter := auditUrlParameter()
+	AuditURLParameter := AuditURLParameter()
 
 	flag.Parse()
 
@@ -46,7 +46,7 @@ func parseServerParameters() *ServerParameters {
 		DBAddress: dbAddressParameter,
 		HashKey: hashKeyParameter,
 		AuditFile: auditFileParameter,
-		AuditUrl: auditUrlParameter,
+		AuditURL: AuditURLParameter,
 	}
 }
 
@@ -140,14 +140,14 @@ func auditFileParameter() string {
 	return auditFile
 }
 
-func auditUrlParameter() string {
-	auditUrl := ""
+func AuditURLParameter() string {
+	AuditURL := ""
 
-	if auditUrlEnv, exist := os.LookupEnv("AUDIT_URL"); exist {
-		return auditUrlEnv
+	if AuditURLEnv, exist := os.LookupEnv("AUDIT_URL"); exist {
+		return AuditURLEnv
 	}
 
-	flag.StringVar(&auditUrl, "audit-url", auditUrl, "URL for audit log sending")
+	flag.StringVar(&AuditURL, "audit-url", AuditURL, "URL for audit log sending")
 
-	return auditUrl
+	return AuditURL
 }
