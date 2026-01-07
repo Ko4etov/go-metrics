@@ -36,18 +36,18 @@ func (h *Handler) processMetricsBatchInternal(
 
 	var metrics []models.Metrics
 	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("Invalid JSON: %w", err)
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid JSON: %w", err)
 	}
 
 	if len(metrics) == 0 {
-		return nil, http.StatusBadRequest, fmt.Errorf("Empty metrics batch")
+		return nil, http.StatusBadRequest, fmt.Errorf("empty metrics batch")
 	}
 
 	var validMetrics []models.Metrics
 	var metricNames []string
 	for _, metric := range metrics {
 		if err := h.validateMetric(&metric); err != nil {
-			return nil, http.StatusBadRequest, fmt.Errorf("Invalid metric: %w", err)
+			return nil, http.StatusBadRequest, fmt.Errorf("invalid metric: %w", err)
 		}
 		validMetrics = append(validMetrics, metric)
 		
@@ -58,7 +58,7 @@ func (h *Handler) processMetricsBatchInternal(
 
 	if err := h.storage.UpdateMetricsBatch(validMetrics); err != nil {
 		return metricNames, http.StatusInternalServerError, 
-			fmt.Errorf("Failed to update metrics: %w", err)
+			fmt.Errorf("failed to update metrics: %w", err)
 	}
 
 	return metricNames, http.StatusOK, nil
