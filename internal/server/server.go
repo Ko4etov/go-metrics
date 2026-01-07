@@ -1,11 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/Ko4etov/go-metrics/internal/server/config"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/router"
+	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
 )
 
 type Server struct {
@@ -28,10 +31,33 @@ func (s *Server) Run() {
 
 	metricsStorage := storage.New(storageConfig)
 
+	var auditSvc *audit.AuditService
+	
+	// Проверяем, нужно ли включать аудит
+	if s.config.AuditFile != "" || s.config.AuditUrl != "" {
+		auditSvc = audit.NewAuditService()
+		
+		if s.config.AuditFile != "" {
+			fileAuditor, err := audit.NewFileAuditor(s.config.AuditFile)
+			if err != nil {
+				fmt.Printf("Failed to create file auditor: %v\n", err)
+				os.Exit(1)
+			}
+			defer fileAuditor.Close()
+			auditSvc.Subscribe(fileAuditor)
+		}
+		
+		if s.config.AuditUrl != "" {
+			httpAuditor := audit.NewHTTPAuditor(s.config.AuditUrl)
+			auditSvc.Subscribe(httpAuditor)
+		}
+	}
+
 	routerConfig := &router.RouteConfig{
 		Storage: metricsStorage,
 		Pgx: s.config.ConnectionPool,
 		HashKey: s.config.HashKey,
+		AuditSvc: auditSvc,
 	}
 	serverRouter := router.New(routerConfig)
 

@@ -25,4 +25,5 @@ vendor/
 .vscode
 
 metrics.json
+metrics_log.json
 .env

@@ -15,6 +15,8 @@ type ServerConfig struct {
 	RestoreMetrics bool
 	ConnectionPool *pgxpool.Pool
 	HashKey string
+	AuditFile string
+	AuditUrl string
 }
 
 func New() (*ServerConfig, error) {
@@ -51,5 +53,7 @@ func New() (*ServerConfig, error) {
 		RestoreMetrics: serverParameters.RestoreMetrics,
 		ConnectionPool: poll,
 		HashKey: serverParameters.HashKey,
+		AuditFile: serverParameters.AuditFile,
+		AuditUrl: serverParameters.AuditUrl,
 	}, nil
 }
