@@ -15,6 +15,8 @@ type ServerConfig struct {
 	RestoreMetrics bool
 	ConnectionPool *pgxpool.Pool
 	HashKey string
+	AuditFile string
+	AuditURL string
 }
 
 func New() (*ServerConfig, error) {
@@ -24,11 +26,11 @@ func New() (*ServerConfig, error) {
         return nil, fmt.Errorf("logger initialization error: %s", err)
     }
 
-	parseServerParameters()
+	serverParameters := parseServerParameters()
 
-	if dbAddress != "" {
-		if _, err := pgxpool.ParseConfig(dbAddress); err == nil {
-			poll, err = db.NewDBConnection(dbAddress)
+	if serverParameters.DBAddress != "" {
+		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
+			poll, err = db.NewDBConnection(serverParameters.DBAddress)
 			if (err != nil) {
 				return nil, fmt.Errorf("db initialization error: %v", err)
 			}
@@ -45,11 +47,13 @@ func New() (*ServerConfig, error) {
 
 
 	return &ServerConfig{
-		ServerAddress: address,
-		StoreMetricsInterval: storeMetricsInterval,
-		FileStorageMetricsPath: fileStorageMetricsPath,
-		RestoreMetrics: restoreMetrics,
+		ServerAddress: serverParameters.Address,
+		StoreMetricsInterval: serverParameters.StoreMetricsInterval,
+		FileStorageMetricsPath: serverParameters.FileStorageMetricsPath,
+		RestoreMetrics: serverParameters.RestoreMetrics,
 		ConnectionPool: poll,
-		HashKey: hashKey,
+		HashKey: serverParameters.HashKey,
+		AuditFile: serverParameters.AuditFile,
+		AuditURL: serverParameters.AuditURL,
 	}, nil
 }

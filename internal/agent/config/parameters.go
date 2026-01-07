@@ -8,11 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var address string = ":8080"
-var reportInterval int = 2
-var pollInterval int = 10
-var hashKey string
-var rateLimit int = 1
+const address string = ":8080"
+const reportInterval int = 2
+const pollInterval int = 10
+const rateLimit int = 1
 
 type AgentParameters struct {
 	Address string
@@ -26,73 +25,99 @@ type AgentParameters struct {
 func parseAgentParameters() *AgentParameters {
 	godotenv.Load()
 	
-	addressParameter()
-	reportIntervalParameter()
-	pollIntervalParameter()
-	hashKeyParameter()
-	rateLimitParameter()
+	addressParameter := addressParameter()
+	reportIntervalParameter := reportIntervalParameter()
+	pollIntervalParameter := pollIntervalParameter()
+	hashKeyParameter := hashKeyParameter()
+	rateLimitParameter := rateLimitParameter()
 
 	flag.Parse()
 
 	return &AgentParameters{
-		Address: address,
-		ReportInterval: reportInterval,
-		PollInterval: pollInterval,
-		HashKey: hashKey,
-		RateLimit: rateLimit,
+		Address: addressParameter,
+		ReportInterval: reportIntervalParameter,
+		PollInterval: pollIntervalParameter,
+		HashKey: hashKeyParameter,
+		RateLimit: rateLimitParameter,
 	}
 }
 
 
-func rateLimitParameter() {
-	if env := os.Getenv("RATE_LIMIT"); env != "" {
-		if val, err := strconv.Atoi(env); err == nil {
-			rateLimit = val
+func rateLimitParameter() int {
+	rateLimit := rateLimit
+
+	if env, exist := os.LookupEnv("RATE_LIMIT"); exist {
+		val, err := strconv.Atoi(env)
+
+		if err != nil {
+			os.Exit(1)
 		}
+
+		rateLimit = val
 	}
 
 	flag.IntVar(&rateLimit, "l", rateLimit, "Hash key")
+
+	return rateLimit
 }
 
-func hashKeyParameter() {
-	if env := os.Getenv("KEY"); env != "" {
+func hashKeyParameter() string {
+	hashKey := ""
+
+	if env, exist := os.LookupEnv("KEY"); exist {
 		hashKey = env
 	}
 
 	flag.StringVar(&hashKey, "k", hashKey, "Hash key")
+
+	return hashKey
 }
 
-func addressParameter() {
-	if addressEnv := os.Getenv("ADDRESS"); addressEnv != "" {
+func addressParameter() string {
+	address := address
+
+	if addressEnv, exist := os.LookupEnv("ADDRESS"); exist {
 		address = addressEnv
-		return
+		return address
 	}
 
 	flag.StringVar(&address, "a", address, "Server address")
+
+	return address
 }
 
-func reportIntervalParameter() {
-	reportIntervalEnv := os.Getenv("REPORT_INTERVAL")
+func reportIntervalParameter() int {
+	reportInterval := reportInterval
 
-	if reportIntervalEnv == "" {
+	reportIntervalEnv, exist := os.LookupEnv("REPORT_INTERVAL")
+
+	if !exist {
 		flag.IntVar(&reportInterval, "r", reportInterval, "Report interval in seconds")
-		return
+		return reportInterval
 	}
 
 	if result, err := strconv.ParseInt(reportIntervalEnv, 0, 64); err == nil {
 		reportInterval = int(result)
 	}
+
+	return reportInterval
 }
 
-func pollIntervalParameter() {
-	pollIntervalEnv := os.Getenv("POLL_INTERVAL")
+func pollIntervalParameter() int {
+	pollInterval := pollInterval
 
-	if pollIntervalEnv == "" {
+	pollIntervalEnv, exist := os.LookupEnv("POLL_INTERVAL")
+
+	if !exist {
 		flag.IntVar(&pollInterval, "p", pollInterval, "Poll interval in seconds")
-		return
+		return pollInterval
 	}
 
-	if result, err := strconv.ParseInt(pollIntervalEnv, 0, 64); err == nil {
-		pollInterval = int(result)
+	result, err := strconv.ParseInt(pollIntervalEnv, 0, 64)
+
+	if err != nil {
+		os.Exit(1)
 	}
+
+	return int(result)
 }

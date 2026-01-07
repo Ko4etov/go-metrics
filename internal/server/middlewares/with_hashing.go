@@ -92,8 +92,6 @@ func WithHashing(config *HashConfig) func(http.Handler) http.Handler {
 
                     if !hmac.Equal([]byte(receivedHash), []byte(expectedHash)) {
                         logger.Logger.Warnln("Hash validation failed - JSON mismatch")
-                        // http.Error(res, "Invalid hash signature", http.StatusBadRequest)
-                        // return
                     }
                 }
             }
