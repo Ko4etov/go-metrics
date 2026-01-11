@@ -457,11 +457,15 @@ func Example_counterAccumulation() {
 	}
 
 	jsonData1, _ := json.Marshal(metric1)
-	resp1, _ := http.Post(
+	resp1, err := http.Post(
 		fmt.Sprintf("%s/update/", server.URL),
 		"application/json",
 		bytes.NewBuffer(jsonData1),
 	)
+	if err != nil {
+		fmt.Printf("Error getting: %v\n", err)
+		return
+	}
 	defer resp1.Body.Close()
 
 	// Второе обновление того же счетчика
@@ -473,19 +477,31 @@ func Example_counterAccumulation() {
 	}
 
 	jsonData2, _ := json.Marshal(metric2)
-	resp2, _ := http.Post(
+	resp2, err2 := http.Post(
 		fmt.Sprintf("%s/update/", server.URL),
 		"application/json",
 		bytes.NewBuffer(jsonData2),
 	)
+	if err2 != nil {
+		fmt.Printf("Error getting: %v\n", err)
+		return
+	}
 	defer resp2.Body.Close()
 
 	// Проверяем значение счетчика
-	resp3, _ := http.Get(fmt.Sprintf("%s/value/counter/TestCounter", server.URL))
+	resp3, err3 := http.Get(fmt.Sprintf("%s/value/counter/TestCounter", server.URL))
+	if err3 != nil {
+		fmt.Printf("Error getting: %v\n", err)
+		return
+	}
 	defer resp3.Body.Close()
 
 	var body bytes.Buffer
-	body.ReadFrom(resp3.Body)
+	_, err = body.ReadFrom(resp3.Body) // Проверяем ошибку
+	if err != nil {
+		fmt.Printf("Error reading response: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Counter value: %s", strings.TrimSpace(body.String()))
 	// Output:
