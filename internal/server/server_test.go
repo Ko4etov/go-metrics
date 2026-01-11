@@ -18,9 +18,7 @@ import (
 
 // Пример обновления метрики типа gauge через текстовый формат.
 func Example_updateMetricText() {
-	// Создаем тестовый сервер
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -40,7 +38,6 @@ func Example_updateMetricText() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Обновление метрики gauge
 	resp, err := http.Post(
 		fmt.Sprintf("%s/update/gauge/Alloc/123.45", server.URL),
 		"text/plain",
@@ -59,9 +56,7 @@ func Example_updateMetricText() {
 
 // Пример обновления метрики типа counter через текстовый формат.
 func Example_updateCounterText() {
-	// Создаем тестовый сервер
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -81,7 +76,6 @@ func Example_updateCounterText() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Обновление метрики counter
 	resp, err := http.Post(
 		fmt.Sprintf("%s/update/counter/PollCount/1", server.URL),
 		"text/plain",
@@ -100,9 +94,7 @@ func Example_updateCounterText() {
 
 // Пример обновления метрики через JSON формат.
 func Example_updateMetricJSON() {
-	// Создаем тестовый сервер
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -122,7 +114,6 @@ func Example_updateMetricJSON() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Подготовка JSON метрики типа gauge
 	value := 123.45
 	metric := models.Metrics{
 		ID:    "Alloc",
@@ -150,9 +141,7 @@ func Example_updateMetricJSON() {
 
 // Пример получения метрики в текстовом формате.
 func Example_getMetricText() {
-	// Создаем тестовый сервер и добавляем тестовые данные
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -165,11 +154,15 @@ func Example_getMetricText() {
 
 	// Добавляем тестовую метрику
 	value := 123.45
-	store.UpdateMetric(models.Metrics{
+	err := store.UpdateMetric(models.Metrics{
 		ID:    "Alloc",
 		MType: "gauge",
 		Value: &value,
 	})
+	if err != nil {
+		fmt.Printf("Error updating metric: %v\n", err)
+		return
+	}
 
 	routerConfig := &router.RouteConfig{
 		Storage: store,
@@ -180,7 +173,6 @@ func Example_getMetricText() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Получение метрики
 	resp, err := http.Get(fmt.Sprintf("%s/value/gauge/Alloc", server.URL))
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -189,7 +181,11 @@ func Example_getMetricText() {
 	defer resp.Body.Close()
 
 	var body bytes.Buffer
-	body.ReadFrom(resp.Body)
+	_, err = body.ReadFrom(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Value: %s", strings.TrimSpace(body.String()))
 	// Output:
@@ -198,9 +194,7 @@ func Example_getMetricText() {
 
 // Пример получения метрики в JSON формате.
 func Example_getMetricJSON() {
-	// Создаем тестовый сервер и добавляем тестовые данные
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -211,13 +205,16 @@ func Example_getMetricJSON() {
 	}
 	store := storage.New(storageConfig)
 
-	// Добавляем тестовую метрику
 	value := 123.45
-	store.UpdateMetric(models.Metrics{
+	err := store.UpdateMetric(models.Metrics{
 		ID:    "Alloc",
 		MType: "gauge",
 		Value: &value,
 	})
+	if err != nil {
+		fmt.Printf("Error updating metric: %v\n", err)
+		return
+	}
 
 	routerConfig := &router.RouteConfig{
 		Storage: store,
@@ -228,7 +225,6 @@ func Example_getMetricJSON() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Запрос метрики в JSON формате
 	reqMetric := models.Metrics{
 		ID:    "Alloc",
 		MType: "gauge",
@@ -247,7 +243,11 @@ func Example_getMetricJSON() {
 	defer resp.Body.Close()
 
 	var result models.Metrics
-	json.NewDecoder(resp.Body).Decode(&result)
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		fmt.Printf("Error decoding response: %v\n", err)
+		return
+	}
 
 	fmt.Printf("ID: %s, Value: %.2f", result.ID, *result.Value)
 	// Output:
@@ -256,9 +256,7 @@ func Example_getMetricJSON() {
 
 // Пример обновления батча метрик.
 func Example_updateBatchMetrics() {
-	// Создаем тестовый сервер
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -315,9 +313,7 @@ func Example_updateBatchMetrics() {
 // Пример проверки соединения с базой данных.
 // Этот пример показывает, что при отсутствии БД ping возвращает ошибку.
 func Example_dBPing_noDB() {
-	// Создаем тестовый сервер БЕЗ подключения к БД
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -328,7 +324,6 @@ func Example_dBPing_noDB() {
 	}
 	store := storage.New(storageConfig)
 
-	// Создаем роутер с nil подключением к БД
 	routerConfig := &router.RouteConfig{
 		Storage: store,
 		Pgx:     nil, // Нет подключения к БД
@@ -352,23 +347,9 @@ func Example_dBPing_noDB() {
 	// Status: 500
 }
 
-// Пример успешной проверки соединения с базой данных.
-// Для этого теста нужно мок-подключение или тестовая БД.
-func Example_dBPing_withDB() {
-	// Этот пример требует реального подключения к БД.
-	// В тестовом окружении можно использовать мок или тестовую БД.
-	fmt.Println("Для проверки ping с БД требуется подключение к PostgreSQL")
-	// Output:
-	// Для проверки ping с БД требуется подключение к PostgreSQL
-}
-
 // Пример получения всех метрик на HTML странице.
-// ВАЖНО: Для работы этого примера должен существовать файл шаблона.
-// Если файл отсутствует, пример вернет ошибку.
 func Example_getAllMetrics() {
-	// Создаем тестовый сервер и добавляем тестовые данные
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -379,7 +360,6 @@ func Example_getAllMetrics() {
 	}
 	store := storage.New(storageConfig)
 
-	// Добавляем тестовые метрики
 	value1 := 100.5
 	store.UpdateMetric(models.Metrics{
 		ID:    "Metric1",
@@ -406,10 +386,8 @@ func Example_getAllMetrics() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Получаем HTML страницу с метриками
 	resp, err := http.Get(server.URL)
 	if err != nil {
-		// Если возникает ошибка, это может быть связано с отсутствием шаблона
 		fmt.Printf("Note: Требуется файл шаблона internal/server/templates/metrics.html")
 		return
 	}
@@ -422,9 +400,7 @@ func Example_getAllMetrics() {
 
 // Пример с накоплением значения counter метрики.
 func Example_counterAccumulation() {
-	// Создаем тестовый сервер
 	cfg := &config.ServerConfig{
-		ServerAddress:        ":8080",
 		RestoreMetrics:       false,
 		StoreMetricsInterval: 0,
 	}
@@ -435,7 +411,6 @@ func Example_counterAccumulation() {
 	}
 	store := storage.New(storageConfig)
 
-	// Создаем мок пула подключений для теста
 	mockPool := &pgxpool.Pool{}
 	
 	routerConfig := &router.RouteConfig{
@@ -448,7 +423,6 @@ func Example_counterAccumulation() {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	// Первое обновление счетчика
 	delta1 := int64(5)
 	metric1 := models.Metrics{
 		ID:    "TestCounter",
@@ -468,7 +442,6 @@ func Example_counterAccumulation() {
 	}
 	defer resp1.Body.Close()
 
-	// Второе обновление того же счетчика
 	delta2 := int64(3)
 	metric2 := models.Metrics{
 		ID:    "TestCounter",
@@ -488,7 +461,6 @@ func Example_counterAccumulation() {
 	}
 	defer resp2.Body.Close()
 
-	// Проверяем значение счетчика
 	resp3, err3 := http.Get(fmt.Sprintf("%s/value/counter/TestCounter", server.URL))
 	if err3 != nil {
 		fmt.Printf("Error getting: %v\n", err)
@@ -497,7 +469,7 @@ func Example_counterAccumulation() {
 	defer resp3.Body.Close()
 
 	var body bytes.Buffer
-	_, err = body.ReadFrom(resp3.Body) // Проверяем ошибку
+	_, err = body.ReadFrom(resp3.Body)
 	if err != nil {
 		fmt.Printf("Error reading response: %v\n", err)
 		return
