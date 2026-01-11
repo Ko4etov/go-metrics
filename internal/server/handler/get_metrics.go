@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -50,6 +51,12 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return MetricsSlice[i].Name < MetricsSlice[j].Name
 	})
 
-	tmpl, _ := template.ParseFiles("internal/server/templates/metrics.html")
-	tmpl.Execute(w, MetricsSlice)
+	tmpl, err := template.ParseFiles("internal/server/templates/metrics.html")
+    if err != nil {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(MetricsSlice)
+        return
+    }
+    
+    tmpl.Execute(w, MetricsSlice)
 }
