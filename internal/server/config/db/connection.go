@@ -12,7 +12,7 @@ func NewDBConnection(address string) (*pgxpool.Pool, error) {
 		address)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	return pool, nil

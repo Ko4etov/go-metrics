@@ -20,32 +20,27 @@ type AuditEvent struct {
 	IPAddress string   `json:"ip_address"`
 }
 
-// Auditor - интерфейс аудитора
 type Auditor interface {
 	Audit(ctx context.Context, event AuditEvent) error
 }
 
-// Subscriber - интерфейс подписчика
 type Subscriber interface {
 	Auditor
 	Name() string
 }
 
-// AuditService - сервис аудита (Subject в паттерне Observer)
 type AuditService struct {
 	subscribers []Subscriber
 	mu          sync.RWMutex
 	enabled     bool
 }
 
-// NewAuditService создает новый сервис аудита
 func NewAuditService() *AuditService {
 	return &AuditService{
 		subscribers: make([]Subscriber, 0),
 	}
 }
 
-// Subscribe добавляет подписчика
 func (as *AuditService) Subscribe(subscriber Subscriber) {
 	as.mu.Lock()
 	defer as.mu.Unlock()
@@ -53,7 +48,6 @@ func (as *AuditService) Subscribe(subscriber Subscriber) {
 	as.enabled = true
 }
 
-// Notify отправляет событие всем подписчикам
 func (as *AuditService) Notify(ctx context.Context, event AuditEvent) error {
 	if !as.enabled {
 		return nil
@@ -91,7 +85,6 @@ func (as *AuditService) Notify(ctx context.Context, event AuditEvent) error {
 	return nil
 }
 
-// FileAuditor - аудитор для записи в файл
 type FileAuditor struct {
 	filePath string
 	file     *os.File
@@ -141,7 +134,6 @@ func (fa *FileAuditor) Close() error {
 	return fa.file.Close()
 }
 
-// HTTPAuditor - аудитор для отправки по HTTP
 type HTTPAuditor struct {
 	url    string
 	client *http.Client

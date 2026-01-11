@@ -15,22 +15,22 @@ const restoreMetrics bool = true
 const profilingEnable bool = false
 
 type ServerParameters struct {
-	Address string
-	StoreMetricsInterval int
+	Address                string
+	StoreMetricsInterval   int
 	FileStorageMetricsPath string
-	RestoreMetrics bool
-	DBAddress string
-	HashKey string
-	AuditFile string
-	AuditURL string
-	ProfilingEnable bool
-	ProfileServerAddress string
-	ProfilingDir string
+	RestoreMetrics         bool
+	DBAddress              string
+	HashKey                string
+	AuditFile              string
+	AuditURL               string
+	ProfilingEnable        bool
+	ProfileServerAddress   string
+	ProfilingDir           string
 }
 
 func parseServerParameters() *ServerParameters {
 	godotenv.Load()
-	
+
 	addressParameter := addressParameter()
 	storeMetricsIntervalParameter := storeMetricsIntervalParameter()
 	fileStorageMetricsPathParameter := fileStorageMetricsPathParameter()
@@ -46,17 +46,17 @@ func parseServerParameters() *ServerParameters {
 	flag.Parse()
 
 	return &ServerParameters{
-		Address: addressParameter,
-		StoreMetricsInterval: storeMetricsIntervalParameter,
+		Address:                addressParameter,
+		StoreMetricsInterval:   storeMetricsIntervalParameter,
 		FileStorageMetricsPath: fileStorageMetricsPathParameter,
-		RestoreMetrics: restoreMetricsParameter,
-		DBAddress: dbAddressParameter,
-		HashKey: hashKeyParameter,
-		AuditFile: auditFileParameter,
-		AuditURL: AuditURLParameter,
-		ProfilingEnable: profilingEnableParameter,
-		ProfileServerAddress: profileServerParameter,
-		ProfilingDir: profileDirParameter,
+		RestoreMetrics:         restoreMetricsParameter,
+		DBAddress:              dbAddressParameter,
+		HashKey:                hashKeyParameter,
+		AuditFile:              auditFileParameter,
+		AuditURL:               AuditURLParameter,
+		ProfilingEnable:        profilingEnableParameter,
+		ProfileServerAddress:   profileServerParameter,
+		ProfilingDir:           profileDirParameter,
 	}
 }
 

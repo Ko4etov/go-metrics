@@ -62,16 +62,15 @@ func (s *MetricsSenderService) startWorkers() {
 }
 
 func (s *MetricsSenderService) worker() {
-    defer s.wg.Done()
+	defer s.wg.Done()
 
-    for metrics := range s.jobs {
-        s.sendWithRetry(func() error {
-            return s.sendBatch(metrics)
-        })
-    }
+	for metrics := range s.jobs {
+		s.sendWithRetry(func() error {
+			return s.sendBatch(metrics)
+		})
+	}
 }
 
-// calculateHash вычисляет HMAC-SHA256 хеш для данных
 func (s *MetricsSenderService) calculateHash(data []byte) string {
 	if s.HashKey == "" {
 		return ""
@@ -82,7 +81,6 @@ func (s *MetricsSenderService) calculateHash(data []byte) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// addHashHeaders добавляет заголовки хэширования к запросу
 func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *resty.Request {
 	if s.HashKey != "" && len(data) > 0 {
 		hash := s.calculateHash(data)
@@ -91,7 +89,6 @@ func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *
 	return req
 }
 
-// verifyResponseHash проверяет хеш ответа от сервера
 func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 	if s.HashKey == "" {
 		return nil // Хеширование отключено
@@ -102,7 +99,6 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 		return nil // Сервер может не отправлять хеш для некоторых ответов
 	}
 
-	// Вычисляем ожидаемый хеш от тела ответа
 	expectedHash := s.calculateHash(resp.Body())
 	if !hmac.Equal([]byte(receivedHash), []byte(expectedHash)) {
 		return fmt.Errorf("response hash verification failed: received %s, expected %s",
@@ -112,22 +108,19 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 	return nil
 }
 
-// SendMetrics отправляет все метрики на сервер батчами с хэшированием
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
-    if len(metrics) == 0 {
-        return
-    }
+	if len(metrics) == 0 {
+		return
+	}
 
-    // Разбиваем на батчи
-    batches := s.splitIntoBatches(metrics)
-    
-    // Отправляем каждый батч в worker pool
-    for _, batch := range batches {
-        select {
-			case s.jobs <- batch:
-			default:
-        }
-    }
+	batches := s.splitIntoBatches(metrics)
+
+	for _, batch := range batches {
+		select {
+		case s.jobs <- batch:
+		default:
+		}
+	}
 }
 
 func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
@@ -212,8 +205,8 @@ func (s *MetricsSenderService) isRetriableByContent(err error) bool {
 
 func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
 	errorStr := strings.ToLower(err.Error())
-    
-    return strings.Contains(errorStr, "server error: 400")
+
+	return strings.Contains(errorStr, "server error: 400")
 }
 
 func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]models.Metrics {
@@ -368,6 +361,6 @@ func (s *MetricsSenderService) BuildURL(metric models.Metrics) string {
 }
 
 func (s *MetricsSenderService) Stop() {
-    close(s.jobs)
-    s.wg.Wait()
+	close(s.jobs)
+	s.wg.Wait()
 }

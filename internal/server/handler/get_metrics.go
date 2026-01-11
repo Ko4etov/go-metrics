@@ -7,13 +7,13 @@ import (
 	"text/template"
 )
 
-type ViewData struct{
-    Title string
-    Metrics []MetricsRecource
+type ViewData struct {
+	Title   string
+	Metrics []MetricsRecource
 }
 
 type MetricsRecource struct {
-	Name string
+	Name  string
 	Value string
 }
 
@@ -29,14 +29,14 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		case "gauge":
 			if metric.Value != nil {
 				MetricsSlice = append(MetricsSlice, MetricsRecource{
-					Name: metric.ID,
+					Name:  metric.ID,
 					Value: fmt.Sprintf("%.2f", *metric.Value),
 				})
 			}
 		case "counter":
 			if metric.Delta != nil {
 				MetricsSlice = append(MetricsSlice, MetricsRecource{
-					Name: metric.ID,
+					Name:  metric.ID,
 					Value: fmt.Sprintf("%d", *metric.Delta),
 				})
 			}
@@ -44,8 +44,8 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Slice(MetricsSlice, func(i, j int) bool {
-        return MetricsSlice[i].Name < MetricsSlice[j].Name
-    })
+		return MetricsSlice[i].Name < MetricsSlice[j].Name
+	})
 
 	tmpl, _ := template.ParseFiles("internal/server/templates/metrics.html")
 	tmpl.Execute(w, MetricsSlice)

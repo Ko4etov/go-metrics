@@ -10,13 +10,12 @@ import (
 	"strings"
 )
 
-// compressionWriter перехватывает ответ для компрессии
 type compressionWriter struct {
 	http.ResponseWriter
-	buffer       *bytes.Buffer
-	header       http.Header
-	statusCode   int
-	wroteHeader  bool
+	buffer      *bytes.Buffer
+	header      http.Header
+	statusCode  int
+	wroteHeader bool
 }
 
 func newCompressionWriter(w http.ResponseWriter) *compressionWriter {
@@ -43,13 +42,13 @@ func (w *compressionWriter) WriteHeader(statusCode int) {
 
 func shouldDecompressRequest(req *http.Request) bool {
 	return req.Header.Get("Content-Encoding") == "gzip" &&
-		(req.Header.Get("Content-Type") == "application/json" || 
-		 req.Header.Get("Content-Type") == "text/html")
+		(req.Header.Get("Content-Type") == "application/json" ||
+			req.Header.Get("Content-Type") == "text/html")
 }
 
 func shouldCompressResponse(req *http.Request, responseContentType string) bool {
 	acceptEncoding := req.Header.Get("Accept-Encoding")
-	
+
 	return strings.Contains(acceptEncoding, "gzip") &&
 		(responseContentType == "application/json" || responseContentType == "text/html")
 }
@@ -88,50 +87,46 @@ func compressResponseBody(data []byte) ([]byte, error) {
 	return compressedBuf.Bytes(), nil
 }
 
-// WithCompression middleware для компрессии/декомпрессии
 func WithCompression(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-        // Декомпрессия входящего запроса если нужно
-        if shouldDecompressRequest(req) {
-            if err := decompressRequestBody(req); err != nil {
-                http.Error(res, err.Error(), http.StatusBadRequest)
-                return
-            }
-        }
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if shouldDecompressRequest(req) {
+			if err := decompressRequestBody(req); err != nil {
+				http.Error(res, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
 
-        compWriter := newCompressionWriter(res)
-        next.ServeHTTP(compWriter, req)
+		compWriter := newCompressionWriter(res)
+		next.ServeHTTP(compWriter, req)
 
-        // Компрессия ответа если нужно
-        responseContentType := compWriter.header.Get("Content-Type")
-        shouldCompress := shouldCompressResponse(req, responseContentType)
+		responseContentType := compWriter.header.Get("Content-Type")
+		shouldCompress := shouldCompressResponse(req, responseContentType)
 
-        var finalBody []byte
-        
-        if shouldCompress && compWriter.buffer.Len() > 0 {
-            compressedBody, err := compressResponseBody(compWriter.buffer.Bytes())
-            if err != nil {
-                http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
-                return
-            }
-            finalBody = compressedBody
-            res.Header().Set("Content-Encoding", "gzip")
-            res.Header().Set("Vary", "Accept-Encoding")
-        } else {
-            finalBody = compWriter.buffer.Bytes()
-        }
+		var finalBody []byte
 
-        // Копируем заголовки
-        for key, values := range compWriter.header {
-            res.Header()[key] = values
-        }
+		if shouldCompress && compWriter.buffer.Len() > 0 {
+			compressedBody, err := compressResponseBody(compWriter.buffer.Bytes())
+			if err != nil {
+				http.Error(res, "Error compressing response: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			finalBody = compressedBody
+			res.Header().Set("Content-Encoding", "gzip")
+			res.Header().Set("Vary", "Accept-Encoding")
+		} else {
+			finalBody = compWriter.buffer.Bytes()
+		}
 
-        res.Header().Set("Content-Length", strconv.Itoa(len(finalBody)))
-        
-        if compWriter.wroteHeader {
-            res.WriteHeader(compWriter.statusCode)
-        }
-        
-        res.Write(finalBody)
-    })
+		for key, values := range compWriter.header {
+			res.Header()[key] = values
+		}
+
+		res.Header().Set("Content-Length", strconv.Itoa(len(finalBody)))
+
+		if compWriter.wroteHeader {
+			res.WriteHeader(compWriter.statusCode)
+		}
+
+		res.Write(finalBody)
+	})
 }

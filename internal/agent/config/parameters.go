@@ -14,17 +14,16 @@ const pollInterval int = 10
 const rateLimit int = 1
 
 type AgentParameters struct {
-	Address string
+	Address        string
 	ReportInterval int
-	PollInterval int
-	HashKey string
-	RateLimit int
-
+	PollInterval   int
+	HashKey        string
+	RateLimit      int
 }
 
 func parseAgentParameters() *AgentParameters {
 	godotenv.Load()
-	
+
 	addressParameter := addressParameter()
 	reportIntervalParameter := reportIntervalParameter()
 	pollIntervalParameter := pollIntervalParameter()
@@ -34,14 +33,13 @@ func parseAgentParameters() *AgentParameters {
 	flag.Parse()
 
 	return &AgentParameters{
-		Address: addressParameter,
+		Address:        addressParameter,
 		ReportInterval: reportIntervalParameter,
-		PollInterval: pollIntervalParameter,
-		HashKey: hashKeyParameter,
-		RateLimit: rateLimitParameter,
+		PollInterval:   pollIntervalParameter,
+		HashKey:        hashKeyParameter,
+		RateLimit:      rateLimitParameter,
 	}
 }
-
 
 func rateLimitParameter() int {
 	rateLimit := rateLimit

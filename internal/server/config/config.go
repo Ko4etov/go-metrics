@@ -9,32 +9,32 @@ import (
 )
 
 type ServerConfig struct {
-	ServerAddress string
-	StoreMetricsInterval int
+	ServerAddress          string
+	StoreMetricsInterval   int
 	FileStorageMetricsPath string
-	RestoreMetrics bool
-	ConnectionPool *pgxpool.Pool
-	HashKey string
-	AuditFile string
-	AuditURL string
-	ProfilingEnable bool
-	ProfileServerAddress string
-	ProfilingDir string
+	RestoreMetrics         bool
+	ConnectionPool         *pgxpool.Pool
+	HashKey                string
+	AuditFile              string
+	AuditURL               string
+	ProfilingEnable        bool
+	ProfileServerAddress   string
+	ProfilingDir           string
 }
 
 func New() (*ServerConfig, error) {
 	var poll *pgxpool.Pool
 
 	if err := logger.Initialize("info"); err != nil {
-        return nil, fmt.Errorf("logger initialization error: %s", err)
-    }
+		return nil, fmt.Errorf("logger initialization error: %s", err)
+	}
 
 	serverParameters := parseServerParameters()
 
 	if serverParameters.DBAddress != "" {
 		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
 			poll, err = db.NewDBConnection(serverParameters.DBAddress)
-			if (err != nil) {
+			if err != nil {
 				return nil, fmt.Errorf("db initialization error: %v", err)
 			}
 		} else {
@@ -48,18 +48,17 @@ func New() (*ServerConfig, error) {
 		}
 	}
 
-
 	return &ServerConfig{
-		ServerAddress: serverParameters.Address,
-		StoreMetricsInterval: serverParameters.StoreMetricsInterval,
+		ServerAddress:          serverParameters.Address,
+		StoreMetricsInterval:   serverParameters.StoreMetricsInterval,
 		FileStorageMetricsPath: serverParameters.FileStorageMetricsPath,
-		RestoreMetrics: serverParameters.RestoreMetrics,
-		ConnectionPool: poll,
-		HashKey: serverParameters.HashKey,
-		AuditFile: serverParameters.AuditFile,
-		AuditURL: serverParameters.AuditURL,
-		ProfilingEnable: serverParameters.ProfilingEnable,
-		ProfileServerAddress: serverParameters.ProfileServerAddress,
-		ProfilingDir: serverParameters.ProfilingDir,
+		RestoreMetrics:         serverParameters.RestoreMetrics,
+		ConnectionPool:         poll,
+		HashKey:                serverParameters.HashKey,
+		AuditFile:              serverParameters.AuditFile,
+		AuditURL:               serverParameters.AuditURL,
+		ProfilingEnable:        serverParameters.ProfilingEnable,
+		ProfileServerAddress:   serverParameters.ProfileServerAddress,
+		ProfilingDir:           serverParameters.ProfilingDir,
 	}, nil
 }

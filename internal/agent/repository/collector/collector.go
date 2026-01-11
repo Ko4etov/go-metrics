@@ -112,7 +112,6 @@ func (c *MetricsCollector) collectGopsutilMetrics() {
 		}
 	}
 
-	// CPU utilization
 	if cpuPercent, err := cpu.Percent(time.Second, false); err == nil && len(cpuPercent) > 0 {
 		cpuUtilization := cpuPercent[0]
 		c.metrics["CPUutilization1"] = models.Metrics{
@@ -122,7 +121,6 @@ func (c *MetricsCollector) collectGopsutilMetrics() {
 		}
 	}
 
-	// CPU utilization per core
 	if cpuPercent, err := cpu.Percent(time.Second, true); err == nil {
 		for i, percent := range cpuPercent {
 			percentCopy := percent

@@ -14,8 +14,8 @@ import (
 
 func TestUpdateMetric(t *testing.T) {
 	storageConfig := &storage.MetricsStorageConfig{
-		RestoreMetrics: false,
-		StoreMetricsInterval: 100,
+		RestoreMetrics:         false,
+		StoreMetricsInterval:   100,
 		FileStorageMetricsPath: "metrics.json",
 	}
 	storage := storage.New(storageConfig)
@@ -130,7 +130,6 @@ func TestUpdateMetric(t *testing.T) {
 	}
 }
 
-// verifyMetricStored checks if the metric was correctly stored
 func verifyMetricStored(t *testing.T, storage interfaces.Storage, metricType, metricName, metricValue string) {
 	t.Helper()
 

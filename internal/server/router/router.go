@@ -10,9 +10,9 @@ import (
 )
 
 type RouteConfig struct {
-	Storage *storage.MetricsStorage
-	Pgx *pgxpool.Pool
-	HashKey string
+	Storage  *storage.MetricsStorage
+	Pgx      *pgxpool.Pool
+	HashKey  string
 	AuditSvc *audit.AuditService
 }
 
@@ -28,7 +28,6 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Use(middlewares.WithHashing(hashConfig))
 	r.Use(middlewares.WithLogging)
 
-	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
 	if config.AuditSvc != nil {
@@ -42,5 +41,5 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
-	return r;
+	return r
 }

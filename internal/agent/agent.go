@@ -11,39 +11,36 @@ import (
 	metricssender "github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
 )
 
-// Agent представляет основной агент сбора и отправки метрик
 type Agent struct {
-	pollInterval       time.Duration
-	reportInterval     time.Duration
-	serverAddress      string
-	collector          interfaces.Collector
-	sender             interfaces.MetricsSender
-	ctx                context.Context
-	cancel             context.CancelFunc
-	wg                 sync.WaitGroup
-	isRunning          bool
-	mu                 sync.RWMutex
+	pollInterval   time.Duration
+	reportInterval time.Duration
+	serverAddress  string
+	collector      interfaces.Collector
+	sender         interfaces.MetricsSender
+	ctx            context.Context
+	cancel         context.CancelFunc
+	wg             sync.WaitGroup
+	isRunning      bool
+	mu             sync.RWMutex
 }
 
-// NewAgent создает новый экземпляр агента
 func New(config *config.AgentConfig) *Agent {
 	collector := collector.New()
 	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Agent{
-		pollInterval:       config.PollInterval,
-		reportInterval:     config.ReportInterval,
-		serverAddress:      config.Address,
-		collector:          collector,
-		sender:             sender,
-		ctx:                ctx,
-		cancel:             cancel,
-		isRunning:          false,
+		pollInterval:   config.PollInterval,
+		reportInterval: config.ReportInterval,
+		serverAddress:  config.Address,
+		collector:      collector,
+		sender:         sender,
+		ctx:            ctx,
+		cancel:         cancel,
+		isRunning:      false,
 	}
 }
 
-// Run запускает агент
 func (a *Agent) Run() {
 	a.mu.Lock()
 	if a.isRunning {
@@ -53,7 +50,6 @@ func (a *Agent) Run() {
 	a.isRunning = true
 	a.mu.Unlock()
 
-	// Запускаем отдельные горутины для сбора и отправки
 	a.wg.Add(2)
 	go a.runPolling()
 	go a.runReporting()
@@ -67,7 +63,7 @@ func (a *Agent) Run() {
 
 func (a *Agent) runPolling() {
 	defer a.wg.Done()
-	
+
 	ticker := time.NewTicker(a.pollInterval)
 	defer ticker.Stop()
 
@@ -83,7 +79,7 @@ func (a *Agent) runPolling() {
 
 func (a *Agent) runReporting() {
 	defer a.wg.Done()
-	
+
 	ticker := time.NewTicker(a.reportInterval)
 	defer ticker.Stop()
 
@@ -106,11 +102,11 @@ func (a *Agent) Stop() {
 	a.mu.RUnlock()
 
 	a.cancel()
-	
+
 	if sender, ok := a.sender.(interface{ Stop() }); ok {
 		sender.Stop()
 	}
-	
+
 	a.wg.Wait()
 }
 
@@ -120,24 +116,22 @@ func (a *Agent) IsRunning() bool {
 	return a.isRunning
 }
 
-// pollMetrics собирает метрики с заданным интервалом
 func (a *Agent) pollMetrics() {
 	select {
-		case <-a.ctx.Done():
-			return
-		default:
-			a.collector.Collect()
+	case <-a.ctx.Done():
+		return
+	default:
+		a.collector.Collect()
 	}
 }
 
-// reportMetrics отправляет метрики на сервер с заданным интервалом
 func (a *Agent) reportMetrics() {
 	select {
-		case <-a.ctx.Done():
-			return
-		default:
-			metrics := a.collector.Metrics()
-			a.sender.SendMetrics(metrics)
-			a.collector.PollCountReset()
+	case <-a.ctx.Done():
+		return
+	default:
+		metrics := a.collector.Metrics()
+		a.sender.SendMetrics(metrics)
+		a.collector.PollCountReset()
 	}
 }

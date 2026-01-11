@@ -10,28 +10,25 @@ import (
 
 type Handler struct {
 	storage interfaces.Storage
-	pgx *pgxpool.Pool
+	pgx     *pgxpool.Pool
 }
 
 func New(s interfaces.Storage, pgx *pgxpool.Pool) *Handler {
-	return &Handler {
+	return &Handler{
 		storage: s,
-		pgx: pgx,
+		pgx:     pgx,
 	}
 }
 
 func (h *Handler) validateMetric(metric *models.Metrics) error {
-	// Проверяем тип метрики
 	if metric.MType != models.Gauge && metric.MType != models.Counter {
 		return fmt.Errorf("invalid metric type: %s", metric.MType)
 	}
 
-	// Проверяем наличие ID
 	if metric.ID == "" {
 		return fmt.Errorf("metric ID is required")
 	}
 
-	// Проверяем значения в зависимости от типа
 	switch metric.MType {
 	case models.Gauge:
 		if metric.Value == nil {

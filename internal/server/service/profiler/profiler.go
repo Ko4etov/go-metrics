@@ -40,14 +40,13 @@ func SaveHeapProfile(filename string) error {
 		return fmt.Errorf("could not create memory profile: %w", err)
 	}
 	defer f.Close()
-	
-	// Собираем данные о памяти
+
 	runtime.GC()
-	
+
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		return fmt.Errorf("could not write memory profile: %w", err)
 	}
-	
+
 	log.Printf("Heap profile saved to %s", filename)
 	return nil
 }

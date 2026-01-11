@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	config  *config.ServerConfig
+	config *config.ServerConfig
 }
 
 func New(config *config.ServerConfig) *Server {
@@ -29,29 +29,26 @@ func (s *Server) Run() {
 		if err := os.MkdirAll(s.config.ProfilingDir, 0755); err != nil {
 			logger.Logger.Fatalf("failed to create profile directory: %v", err)
 		}
-		
+
 		profiler.StartProfiling(s.config.ProfileServerAddress)
-		
-		// profiler.MonitorMemory(30 * time.Second)
-		
-		profiler.SaveProfiling(s.config.ProfilingDir, 30 * time.Second)
+
+		profiler.SaveProfiling(s.config.ProfilingDir, 30*time.Second)
 	}
-	
+
 	storageConfig := &storage.MetricsStorageConfig{
-		RestoreMetrics: s.config.RestoreMetrics,
-		StoreMetricsInterval: s.config.StoreMetricsInterval,
+		RestoreMetrics:         s.config.RestoreMetrics,
+		StoreMetricsInterval:   s.config.StoreMetricsInterval,
 		FileStorageMetricsPath: s.config.FileStorageMetricsPath,
-		ConnectionPool: s.config.ConnectionPool,
+		ConnectionPool:         s.config.ConnectionPool,
 	}
 
 	metricsStorage := storage.New(storageConfig)
 
 	var auditSvc *audit.AuditService
-	
-	// Проверяем, нужно ли включать аудит
+
 	if s.config.AuditFile != "" || s.config.AuditURL != "" {
 		auditSvc = audit.NewAuditService()
-		
+
 		if s.config.AuditFile != "" {
 			fileAuditor, err := audit.NewFileAuditor(s.config.AuditFile)
 			if err != nil {
@@ -61,7 +58,7 @@ func (s *Server) Run() {
 			defer fileAuditor.Close()
 			auditSvc.Subscribe(fileAuditor)
 		}
-		
+
 		if s.config.AuditURL != "" {
 			httpAuditor := audit.NewHTTPAuditor(s.config.AuditURL)
 			auditSvc.Subscribe(httpAuditor)
@@ -69,9 +66,9 @@ func (s *Server) Run() {
 	}
 
 	routerConfig := &router.RouteConfig{
-		Storage: metricsStorage,
-		Pgx: s.config.ConnectionPool,
-		HashKey: s.config.HashKey,
+		Storage:  metricsStorage,
+		Pgx:      s.config.ConnectionPool,
+		HashKey:  s.config.HashKey,
 		AuditSvc: auditSvc,
 	}
 	serverRouter := router.New(routerConfig)
@@ -81,7 +78,6 @@ func (s *Server) Run() {
 		defer metricsStorage.StopPeriodicSave()
 	}
 
-	// Запускаем сервер
 	err := http.ListenAndServe(s.config.ServerAddress, serverRouter)
 	if err != nil {
 		panic(err)

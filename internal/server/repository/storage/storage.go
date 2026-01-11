@@ -40,7 +40,6 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 		done:    make(chan bool),
 	}
 
-	// Загрузка метрик при старте если нужно
 	if config.RestoreMetrics {
 		storage.LoadSavedMetrics()
 	}
@@ -51,14 +50,14 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 func (ms *MetricsStorage) LoadSavedMetrics() {
 	if ms.config.ConnectionPool != nil {
 		ms.LoadFromDatabase()
-	} else if ms.config.FileStorageMetricsPath != ""  {
+	} else if ms.config.FileStorageMetricsPath != "" {
 		ms.LoadFromFile()
 	}
 }
 
 func (ms *MetricsStorage) LoadFromDatabase() error {
 	ctx := context.Background()
-	rows, err := ms.config.ConnectionPool.Query(ctx, 
+	rows, err := ms.config.ConnectionPool.Query(ctx,
 		"SELECT id, type, delta, value, hash FROM metrics")
 	if err != nil {
 		return fmt.Errorf("failed to query metrics: %w", err)
@@ -105,25 +104,21 @@ func (ms *MetricsStorage) SaveToFile() error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	// Создаем директорию если нужно
 	dir := filepath.Dir(ms.config.FileStorageMetricsPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Конвертируем метрики в срез для JSON
 	metricsSlice := make([]models.Metrics, 0, len(ms.metrics))
 	for _, metric := range ms.metrics {
 		metricsSlice = append(metricsSlice, metric)
 	}
 
-	// Сериализуем в JSON
 	data, err := json.MarshalIndent(metricsSlice, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal metrics: %w", err)
 	}
 
-	// Записываем в файл
 	if err := os.WriteFile(ms.config.FileStorageMetricsPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -136,8 +131,7 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 		ms.saveTicker.Stop()
 		close(ms.done)
 	}
-	
-	// Финальное сохранение при остановке
+
 	if ms.config.FileStorageMetricsPath != "" {
 		if err := ms.SaveToFile(); err != nil {
 			fmt.Printf("Error saving metrics on shutdown: %v\n", err)
@@ -152,18 +146,15 @@ func (ms *MetricsStorage) LoadFromFile() error {
 		return errors.New("file storage path not specified")
 	}
 
-	// Проверяем существует ли файл
 	if _, err := os.Stat(ms.config.FileStorageMetricsPath); os.IsNotExist(err) {
 		return fmt.Errorf("file not found: %s", ms.config.FileStorageMetricsPath)
 	}
 
-	// Читаем файл
 	data, err := os.ReadFile(ms.config.FileStorageMetricsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Декодируем JSON
 	var metricsSlice []models.Metrics
 	if err := json.Unmarshal(data, &metricsSlice); err != nil {
 		return fmt.Errorf("failed to unmarshal metrics: %w", err)
@@ -172,7 +163,6 @@ func (ms *MetricsStorage) LoadFromFile() error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	// Загружаем метрики в хранилище
 	for _, metric := range metricsSlice {
 		ms.metrics[metric.ID] = metric
 	}
@@ -200,7 +190,6 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 			return ErrInvalidDelta
 		}
 
-		// Для counter добавляем значение к существующему
 		if existing, exists := ms.metrics[metric.ID]; exists && existing.MType == models.Counter {
 			newDelta := *existing.Delta + *metric.Delta
 			metric.Delta = &newDelta
@@ -216,7 +205,6 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 			return fmt.Errorf("failed to save metric to database: %w", err)
 		}
 	} else if ms.config.StoreMetricsInterval == 0 && ms.config.FileStorageMetricsPath != "" {
-		// Или сохраняем в файл если нет БД
 		return ms.SaveToFile()
 	}
 
@@ -396,12 +384,10 @@ func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName
 
 		lastErr = err
 
-		// Проверяем, является ли ошибка retriable
 		if !ms.isRetriableDBError(err) {
 			return fmt.Errorf("non-retriable database error: %w", err)
 		}
 
-		// Если это не последняя попытка, ждем перед повторной попыткой
 		if attempt < maxRetries {
 			delay := retryDelays[attempt]
 			time.Sleep(delay)
@@ -417,11 +403,10 @@ func (ms *MetricsStorage) isRetriableDBError(err error) bool {
 	}
 
 	return ms.isPostgresRetriableError(err) ||
-	       ms.isContextError(err) ||
-	       ms.isNetworkErrorByContent(err)
+		ms.isContextError(err) ||
+		ms.isNetworkErrorByContent(err)
 }
 
-// isPostgresRetriableError проверяет PostgreSQL-specific retriable ошибки
 func (ms *MetricsStorage) isPostgresRetriableError(err error) bool {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
@@ -429,17 +414,14 @@ func (ms *MetricsStorage) isPostgresRetriableError(err error) bool {
 	}
 
 	return ms.isPostgresConnectionError(pgErr) ||
-	       ms.isPostgresRetriableCode(pgErr) ||
-	       !ms.isPostgresNonRetriableError(pgErr)
+		ms.isPostgresRetriableCode(pgErr) ||
+		!ms.isPostgresNonRetriableError(pgErr)
 }
 
-// isPostgresConnectionError проверяет ошибки класса Connection Exception (08)
 func (ms *MetricsStorage) isPostgresConnectionError(pgErr *pgconn.PgError) bool {
-	// Class 08 - Connection Exception (retriable)
 	return len(pgErr.Code) >= 2 && pgErr.Code[0:2] == "08"
 }
 
-// isPostgresRetriableCode проверяет конкретные retriable коды ошибок PostgreSQL
 func (ms *MetricsStorage) isPostgresRetriableCode(pgErr *pgconn.PgError) bool {
 	switch pgErr.Code {
 	case pgerrcode.AdminShutdown,
@@ -451,21 +433,17 @@ func (ms *MetricsStorage) isPostgresRetriableCode(pgErr *pgconn.PgError) bool {
 	return false
 }
 
-// isPostgresNonRetriableError проверяет non-retriable ошибки PostgreSQL
 func (ms *MetricsStorage) isPostgresNonRetriableError(pgErr *pgconn.PgError) bool {
-	// Unique violation - не retriable
 	return pgErr.Code == pgerrcode.UniqueViolation
 }
 
-// isContextError проверяет ошибки контекста
 func (ms *MetricsStorage) isContextError(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) ||
-	       errors.Is(err, context.Canceled)
+		errors.Is(err, context.Canceled)
 }
 
-// isNetworkErrorByContent проверяет сетевые ошибки по содержимому
 func (ms *MetricsStorage) isNetworkErrorByContent(err error) bool {
-	errorStr := strings.ToLower(err.Error()) // Добавляем ToLower для надежности
+	errorStr := strings.ToLower(err.Error())
 	retriablePatterns := []string{
 		"connection", "network", "timeout", "dial", "broken pipe",
 		"connection reset", "unavailable", "closed",

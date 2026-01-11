@@ -16,7 +16,7 @@ func getIPAddress(req *http.Request) string {
 	if forwarded := req.Header.Get("X-Forwarded-For"); forwarded != "" {
 		return forwarded
 	}
-	
+
 	ip, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		return req.RemoteAddr
@@ -25,11 +25,11 @@ func getIPAddress(req *http.Request) string {
 }
 
 func (h *Handler) processMetricsBatchInternal(
-	res http.ResponseWriter, 
+	res http.ResponseWriter,
 	req *http.Request,
 	auditSvc *audit.AuditService,
 ) ([]string, int, error) {
-	
+
 	if req.Header.Get("Content-Type") != "application/json" {
 		return nil, http.StatusBadRequest, fmt.Errorf("Content-Type must be application/json")
 	}
@@ -52,14 +52,14 @@ func (h *Handler) processMetricsBatchInternal(
 	var metricNames []string
 	if auditSvc != nil {
 		metricNames = make([]string, 0, len(metrics))
-		
+
 		for i := range metrics {
 			metricNames = append(metricNames, metrics[i].ID)
 		}
 	}
 
 	if err := h.storage.UpdateMetricsBatch(metrics); err != nil {
-		return metricNames, http.StatusInternalServerError, 
+		return metricNames, http.StatusInternalServerError,
 			fmt.Errorf("failed to update metrics: %w", err)
 	}
 
@@ -68,7 +68,7 @@ func (h *Handler) processMetricsBatchInternal(
 
 func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request) {
 	_, statusCode, err := h.processMetricsBatchInternal(res, req, nil)
-	
+
 	if err != nil {
 		http.Error(res, err.Error(), statusCode)
 		return
@@ -81,7 +81,7 @@ func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request)
 func (h *Handler) UpdateMetricsBatchWithAudit(auditSvc *audit.AuditService) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		metricNames, statusCode, err := h.processMetricsBatchInternal(res, req, auditSvc)
-		
+
 		if err != nil {
 			http.Error(res, err.Error(), statusCode)
 			return
