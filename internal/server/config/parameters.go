@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 const address string = ":8080"
@@ -29,7 +31,9 @@ type ServerParameters struct {
 }
 
 func parseServerParameters() *ServerParameters {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+        logger.Logger.Info(".env file not loaded: %v", err)
+    }
 
 	addressParameter := addressParameter()
 	storeMetricsIntervalParameter := storeMetricsIntervalParameter()
