@@ -34,7 +34,7 @@ func (h *Handler) processMetricsBatchInternal(
 		return nil, http.StatusBadRequest, fmt.Errorf("Content-Type must be application/json")
 	}
 
-	var metrics []models.Metrics
+	metrics := make([]models.Metrics, 0, 10)
 	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("invalid JSON: %w", err)
 	}
@@ -43,20 +43,22 @@ func (h *Handler) processMetricsBatchInternal(
 		return nil, http.StatusBadRequest, fmt.Errorf("empty metrics batch")
 	}
 
-	var validMetrics []models.Metrics
-	var metricNames []string
-	for _, metric := range metrics {
-		if err := h.validateMetric(&metric); err != nil {
+	for i := range metrics {
+		if err := h.validateMetric(&metrics[i]); err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("invalid metric: %w", err)
-		}
-		validMetrics = append(validMetrics, metric)
-		
-		if auditSvc != nil {
-			metricNames = append(metricNames, metric.ID)
 		}
 	}
 
-	if err := h.storage.UpdateMetricsBatch(validMetrics); err != nil {
+	var metricNames []string
+	if auditSvc != nil {
+		metricNames = make([]string, 0, len(metrics))
+		
+		for i := range metrics {
+			metricNames = append(metricNames, metrics[i].ID)
+		}
+	}
+
+	if err := h.storage.UpdateMetricsBatch(metrics); err != nil {
 		return metricNames, http.StatusInternalServerError, 
 			fmt.Errorf("failed to update metrics: %w", err)
 	}

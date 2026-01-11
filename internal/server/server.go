@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/server/config"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/router"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
+	"github.com/Ko4etov/go-metrics/internal/server/service/profiler"
 )
 
 type Server struct {
@@ -22,6 +25,18 @@ func New(config *config.ServerConfig) *Server {
 }
 
 func (s *Server) Run() {
+	if s.config.ProfilingEnable {
+		if err := os.MkdirAll(s.config.ProfilingDir, 0755); err != nil {
+			logger.Logger.Fatalf("failed to create profile directory: %v", err)
+		}
+		
+		profiler.StartProfiling(s.config.ProfileServerAddress)
+		
+		// profiler.MonitorMemory(30 * time.Second)
+		
+		profiler.SaveProfiling(s.config.ProfilingDir, 30 * time.Second)
+	}
+	
 	storageConfig := &storage.MetricsStorageConfig{
 		RestoreMetrics: s.config.RestoreMetrics,
 		StoreMetricsInterval: s.config.StoreMetricsInterval,

@@ -17,6 +17,9 @@ type ServerConfig struct {
 	HashKey string
 	AuditFile string
 	AuditURL string
+	ProfilingEnable bool
+	ProfileServerAddress string
+	ProfilingDir string
 }
 
 func New() (*ServerConfig, error) {
@@ -55,5 +58,8 @@ func New() (*ServerConfig, error) {
 		HashKey: serverParameters.HashKey,
 		AuditFile: serverParameters.AuditFile,
 		AuditURL: serverParameters.AuditURL,
+		ProfilingEnable: serverParameters.ProfilingEnable,
+		ProfileServerAddress: serverParameters.ProfileServerAddress,
+		ProfilingDir: serverParameters.ProfilingDir,
 	}, nil
 }

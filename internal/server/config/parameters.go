@@ -12,6 +12,7 @@ const address string = ":8080"
 const storeMetricsInterval int = 300
 const fileStorageMetricsPath string = "metrics.json"
 const restoreMetrics bool = true
+const profilingEnable bool = false
 
 type ServerParameters struct {
 	Address string
@@ -22,6 +23,9 @@ type ServerParameters struct {
 	HashKey string
 	AuditFile string
 	AuditURL string
+	ProfilingEnable bool
+	ProfileServerAddress string
+	ProfilingDir string
 }
 
 func parseServerParameters() *ServerParameters {
@@ -34,7 +38,10 @@ func parseServerParameters() *ServerParameters {
 	dbAddressParameter := dbAddressParameter()
 	hashKeyParameter := hashKeyParameter()
 	auditFileParameter := auditFileParameter()
-	AuditURLParameter := AuditURLParameter()
+	AuditURLParameter := auditURLParameter()
+	profilingEnableParameter := profilingEnableParameter()
+	profileServerParameter := profileServerAddressParameter()
+	profileDirParameter := profileDirParameter()
 
 	flag.Parse()
 
@@ -47,6 +54,9 @@ func parseServerParameters() *ServerParameters {
 		HashKey: hashKeyParameter,
 		AuditFile: auditFileParameter,
 		AuditURL: AuditURLParameter,
+		ProfilingEnable: profilingEnableParameter,
+		ProfileServerAddress: profileServerParameter,
+		ProfilingDir: profileDirParameter,
 	}
 }
 
@@ -54,7 +64,6 @@ func hashKeyParameter() string {
 	env, exist := os.LookupEnv("KEY")
 
 	if !exist {
-		// Значения по умолчанию нет, значит выходим
 		os.Exit(2)
 	}
 
@@ -140,7 +149,7 @@ func auditFileParameter() string {
 	return auditFile
 }
 
-func AuditURLParameter() string {
+func auditURLParameter() string {
 	AuditURL := ""
 
 	if AuditURLEnv, exist := os.LookupEnv("AUDIT_URL"); exist {
@@ -150,4 +159,44 @@ func AuditURLParameter() string {
 	flag.StringVar(&AuditURL, "audit-url", AuditURL, "URL for audit log sending")
 
 	return AuditURL
+}
+
+func profilingEnableParameter() bool {
+	profilingEnable := profilingEnable
+
+	profilingEnableEnv, exist := os.LookupEnv("PROFILE")
+
+	if exist {
+		if val, err := strconv.ParseBool(profilingEnableEnv); err == nil {
+			profilingEnable = val
+		}
+	}
+
+	flag.BoolVar(&profilingEnable, "profile", profilingEnable, "Enable profiling")
+
+	return profilingEnable
+}
+
+func profileServerAddressParameter() string {
+	profileServer := ""
+
+	if profileServerEnv, exist := os.LookupEnv("PROFILE_ADDR"); exist {
+		return profileServerEnv
+	}
+
+	flag.StringVar(&profileServer, "profile-addr", profileServer, "Address for pprof server")
+
+	return profileServer
+}
+
+func profileDirParameter() string {
+	profileDir := ""
+
+	if ProfileDirEnv, exist := os.LookupEnv("PROFILE_DIR"); exist {
+		return ProfileDirEnv
+	}
+
+	flag.StringVar(&profileDir, "profile-dir", profileDir, "Address for pprof server")
+
+	return profileDir
 }
