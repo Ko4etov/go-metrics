@@ -3,9 +3,10 @@ package config
 import (
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/Ko4etov/go-metrics/internal/server/config/db"
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ServerConfig struct {

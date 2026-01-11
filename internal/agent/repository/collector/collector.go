@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MetricsCollector struct {

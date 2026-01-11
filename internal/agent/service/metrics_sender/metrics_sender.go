@@ -15,8 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 // MetricsSenderService отправляет метрики на сервер с поддержкой хэширования

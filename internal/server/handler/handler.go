@@ -3,9 +3,10 @@ package handler
 import (
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Handler struct {

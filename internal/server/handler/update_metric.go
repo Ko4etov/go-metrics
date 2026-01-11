@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 func (h *Handler) UpdateMetric(res http.ResponseWriter, req *http.Request) {

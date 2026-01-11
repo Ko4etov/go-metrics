@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
-	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
+	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 )
 
 func TestUpdateMetric(t *testing.T) {

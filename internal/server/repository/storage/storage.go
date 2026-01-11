@@ -11,10 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
 type MetricsStorage struct {
