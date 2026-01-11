@@ -9,11 +9,13 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
 )
 
+// Handler обрабатывает HTTP-запросы для работы с метриками.
 type Handler struct {
-	storage interfaces.Storage
-	pgx     *pgxpool.Pool
+	storage interfaces.Storage // хранилище метрик
+	pgx     *pgxpool.Pool      // пул подключений к базе данных
 }
 
+// New создает новый обработчик.
 func New(s interfaces.Storage, pgx *pgxpool.Pool) *Handler {
 	return &Handler{
 		storage: s,
@@ -21,6 +23,7 @@ func New(s interfaces.Storage, pgx *pgxpool.Pool) *Handler {
 	}
 }
 
+// validateMetric проверяет валидность метрики.
 func (h *Handler) validateMetric(metric *models.Metrics) error {
 	if metric.MType != models.Gauge && metric.MType != models.Counter {
 		return fmt.Errorf("invalid metric type: %s", metric.MType)

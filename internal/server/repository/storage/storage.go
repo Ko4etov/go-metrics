@@ -1,3 +1,4 @@
+// Package storage реализует хранилище метрик.
 package storage
 
 import (
@@ -18,21 +19,24 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
+// MetricsStorage реализует хранилище метрик.
 type MetricsStorage struct {
-	metrics    map[string]models.Metrics
-	mu         *sync.Mutex
-	config     *MetricsStorageConfig
-	saveTicker *time.Ticker
-	done       chan bool
+	metrics    map[string]models.Metrics // карта метрик
+	mu         *sync.Mutex               // мьютекс для безопасного доступа
+	config     *MetricsStorageConfig     // конфигурация хранилища
+	saveTicker *time.Ticker              // таймер для периодического сохранения
+	done       chan bool                 // канал для остановки таймера
 }
 
+// MetricsStorageConfig содержит конфигурацию хранилища.
 type MetricsStorageConfig struct {
-	RestoreMetrics         bool
-	StoreMetricsInterval   int
-	FileStorageMetricsPath string
-	ConnectionPool         *pgxpool.Pool
+	RestoreMetrics         bool          // восстанавливать метрики при старте
+	StoreMetricsInterval   int           // интервал сохранения в секундах
+	FileStorageMetricsPath string        // путь к файлу хранения
+	ConnectionPool         *pgxpool.Pool // пул подключений к базе данных
 }
 
+// New создает новое хранилище метрик.
 func New(config *MetricsStorageConfig) *MetricsStorage {
 	storage := &MetricsStorage{
 		metrics: make(map[string]models.Metrics),
@@ -48,6 +52,7 @@ func New(config *MetricsStorageConfig) *MetricsStorage {
 	return storage
 }
 
+// LoadSavedMetrics загружает сохраненные метрики.
 func (ms *MetricsStorage) LoadSavedMetrics() {
 	if ms.config.ConnectionPool != nil {
 		ms.LoadFromDatabase()
@@ -56,6 +61,7 @@ func (ms *MetricsStorage) LoadSavedMetrics() {
 	}
 }
 
+// LoadFromDatabase загружает метрики из базы данных.
 func (ms *MetricsStorage) LoadFromDatabase() error {
 	ctx := context.Background()
 	rows, err := ms.config.ConnectionPool.Query(ctx,
@@ -80,6 +86,7 @@ func (ms *MetricsStorage) LoadFromDatabase() error {
 	return rows.Err()
 }
 
+// StartPeriodicSave запускает периодическое сохранение метрик.
 func (ms *MetricsStorage) StartPeriodicSave() {
 	interval := time.Duration(ms.config.StoreMetricsInterval) * time.Second
 	ms.saveTicker = time.NewTicker(interval)
@@ -100,6 +107,7 @@ func (ms *MetricsStorage) StartPeriodicSave() {
 	}()
 }
 
+// SaveToFile сохраняет метрики в файл.
 func (ms *MetricsStorage) SaveToFile() error {
 
 	ms.mu.Lock()
@@ -127,6 +135,7 @@ func (ms *MetricsStorage) SaveToFile() error {
 	return nil
 }
 
+// StopPeriodicSave останавливает периодическое сохранение.
 func (ms *MetricsStorage) StopPeriodicSave() {
 	if ms.saveTicker != nil {
 		ms.saveTicker.Stop()
@@ -142,6 +151,7 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 	}
 }
 
+// LoadFromFile загружает метрики из файла.
 func (ms *MetricsStorage) LoadFromFile() error {
 	if ms.config.FileStorageMetricsPath == "" {
 		return errors.New("file storage path not specified")
@@ -171,10 +181,12 @@ func (ms *MetricsStorage) LoadFromFile() error {
 	return nil
 }
 
+// Metrics возвращает все метрики.
 func (ms *MetricsStorage) Metrics() map[string]models.Metrics {
 	return ms.metrics
 }
 
+// UpdateMetric обновляет одну метрику.
 func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -212,15 +224,18 @@ func (ms *MetricsStorage) UpdateMetric(metric models.Metrics) error {
 	return nil
 }
 
+// Metric возвращает метрику по идентификатору.
 func (ms *MetricsStorage) Metric(id string) (models.Metrics, bool) {
 	metric, ok := ms.metrics[id]
 	return metric, ok
 }
 
+// ResetAll сбрасывает все метрики.
 func (ms *MetricsStorage) ResetAll() {
 	ms.metrics = make(map[string]models.Metrics)
 }
 
+// GaugeMetric возвращает значение метрики типа gauge в виде строки.
 func (ms *MetricsStorage) GaugeMetric(name string) (string, error) {
 	metric, exists := ms.Metric(name)
 	if !exists || metric.MType != "gauge" {
@@ -234,6 +249,7 @@ func (ms *MetricsStorage) GaugeMetric(name string) (string, error) {
 	return fmt.Sprintf("%g", *metric.Value), nil
 }
 
+// CounterMetric возвращает значение метрики типа counter в виде строки.
 func (ms *MetricsStorage) CounterMetric(name string) (string, error) {
 	metric, exists := ms.Metric(name)
 	if !exists || metric.MType != "counter" {
@@ -247,6 +263,7 @@ func (ms *MetricsStorage) CounterMetric(name string) (string, error) {
 	return fmt.Sprintf("%d", *metric.Delta), nil
 }
 
+// GaugeMetricModel возвращает метрику типа gauge в виде модели.
 func (ms *MetricsStorage) GaugeMetricModel(name string) (*models.Metrics, error) {
 	metric, exists := ms.Metric(name)
 	if !exists || metric.MType != "gauge" {
@@ -260,6 +277,7 @@ func (ms *MetricsStorage) GaugeMetricModel(name string) (*models.Metrics, error)
 	return &metric, nil
 }
 
+// CounterMetricModel возвращает метрику типа counter в виде модели.
 func (ms *MetricsStorage) CounterMetricModel(name string) (*models.Metrics, error) {
 	metric, exists := ms.Metric(name)
 	if !exists || metric.MType != "counter" {
@@ -273,6 +291,7 @@ func (ms *MetricsStorage) CounterMetricModel(name string) (*models.Metrics, erro
 	return &metric, nil
 }
 
+// UpdateMetricsBatch обновляет батч метрик.
 func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -312,6 +331,7 @@ func (ms *MetricsStorage) UpdateMetricsBatch(metrics []models.Metrics) error {
 	return nil
 }
 
+// saveMetricToDatabase сохраняет одну метрику в базу данных.
 func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
 	operation := func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -334,6 +354,7 @@ func (ms *MetricsStorage) saveMetricToDatabase(metric models.Metrics) error {
 	return ms.executeWithRetry(operation, "save metric to database")
 }
 
+// saveMetricsBatchToDatabase сохраняет батч метрик в базу данных.
 func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) error {
 	operation := func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -368,6 +389,7 @@ func (ms *MetricsStorage) saveMetricsBatchToDatabase(metrics []models.Metrics) e
 	return ms.executeWithRetry(operation, "save metrics batch to database")
 }
 
+// executeWithRetry выполняет операцию с повторными попытками.
 func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName string) error {
 	if ms.config.ConnectionPool == nil {
 		return operation() // Для файлового хранилища retry не нужен
@@ -398,6 +420,7 @@ func (ms *MetricsStorage) executeWithRetry(operation func() error, operationName
 	return fmt.Errorf("database %s failed after %d retries: %w", operationName, maxRetries, lastErr)
 }
 
+// isRetriableDBError проверяет, является ли ошибка базы данных повторяемой.
 func (ms *MetricsStorage) isRetriableDBError(err error) bool {
 	if err == nil {
 		return false
@@ -408,6 +431,7 @@ func (ms *MetricsStorage) isRetriableDBError(err error) bool {
 		ms.isNetworkErrorByContent(err)
 }
 
+// isPostgresRetriableError проверяет, является ли ошибка PostgreSQL повторяемой.
 func (ms *MetricsStorage) isPostgresRetriableError(err error) bool {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
@@ -419,10 +443,12 @@ func (ms *MetricsStorage) isPostgresRetriableError(err error) bool {
 		!ms.isPostgresNonRetriableError(pgErr)
 }
 
+// isPostgresConnectionError проверяет ошибки соединения с PostgreSQL.
 func (ms *MetricsStorage) isPostgresConnectionError(pgErr *pgconn.PgError) bool {
 	return len(pgErr.Code) >= 2 && pgErr.Code[0:2] == "08"
 }
 
+// isPostgresRetriableCode проверяет коды ошибок PostgreSQL, допускающие повтор.
 func (ms *MetricsStorage) isPostgresRetriableCode(pgErr *pgconn.PgError) bool {
 	switch pgErr.Code {
 	case pgerrcode.AdminShutdown,
@@ -434,15 +460,18 @@ func (ms *MetricsStorage) isPostgresRetriableCode(pgErr *pgconn.PgError) bool {
 	return false
 }
 
+// isPostgresNonRetriableError проверяет не повторяемые ошибки PostgreSQL.
 func (ms *MetricsStorage) isPostgresNonRetriableError(pgErr *pgconn.PgError) bool {
 	return pgErr.Code == pgerrcode.UniqueViolation
 }
 
+// isContextError проверяет ошибки контекста.
 func (ms *MetricsStorage) isContextError(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, context.Canceled)
 }
 
+// isNetworkErrorByContent проверяет сетевые ошибки по содержимому.
 func (ms *MetricsStorage) isNetworkErrorByContent(err error) bool {
 	errorStr := strings.ToLower(err.Error())
 	retriablePatterns := []string{
@@ -458,6 +487,7 @@ func (ms *MetricsStorage) isNetworkErrorByContent(err error) bool {
 	return false
 }
 
+// Ошибки хранилища.
 var (
 	ErrInvalidType  = errors.New("invalid metric type")
 	ErrInvalidValue = errors.New("invalid value for gauge metric")

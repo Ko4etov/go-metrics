@@ -11,10 +11,12 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
+// HashConfig содержит конфигурацию для хеширования.
 type HashConfig struct {
-	SecretKey string
+	SecretKey string // секретный ключ для вычисления HMAC
 }
 
+// hashWriter оборачивает ResponseWriter для вычисления хеша ответа.
 type hashWriter struct {
 	http.ResponseWriter
 	secretKey   string
@@ -24,6 +26,7 @@ type hashWriter struct {
 	wroteHeader bool
 }
 
+// newHashWriter создает новый hashWriter.
 func newHashWriter(w http.ResponseWriter, secretKey string) *hashWriter {
 	return &hashWriter{
 		ResponseWriter: w,
@@ -34,19 +37,23 @@ func newHashWriter(w http.ResponseWriter, secretKey string) *hashWriter {
 	}
 }
 
+// Header возвращает заголовки ответа.
 func (w *hashWriter) Header() http.Header {
 	return w.header
 }
 
+// Write записывает данные в буфер.
 func (w *hashWriter) Write(data []byte) (int, error) {
 	return w.buffer.Write(data)
 }
 
+// WriteHeader устанавливает статус код ответа.
 func (w *hashWriter) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
 	w.wroteHeader = true
 }
 
+// calculateHash вычисляет HMAC-SHA256 хеш для данных.
 func calculateHash(data []byte, secretKey string) string {
 	if secretKey == "" {
 		return ""
@@ -57,11 +64,13 @@ func calculateHash(data []byte, secretKey string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// shouldValidateHash проверяет, нужно ли валидировать хеш запроса.
 func shouldValidateHash(req *http.Request) bool {
 	return (req.Method == http.MethodPost || req.Method == http.MethodPut) &&
 		req.Body != nil && req.Body != http.NoBody
 }
 
+// WithHashing возвращает middleware для проверки и добавления хешей.
 func WithHashing(config *HashConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {

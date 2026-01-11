@@ -1,3 +1,4 @@
+// Package server предоставляет сервер для системы сбора метрик.
 package server
 
 import (
@@ -14,16 +15,19 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/profiler"
 )
 
+// Server представляет HTTP-сервер для системы метрик.
 type Server struct {
-	config *config.ServerConfig
+	config *config.ServerConfig // конфигурация сервера
 }
 
+// New создает новый экземпляр сервера.
 func New(config *config.ServerConfig) *Server {
 	return &Server{
 		config: config,
 	}
 }
 
+// Run запускает HTTP-сервер.
 func (s *Server) Run() {
 	if s.config.ProfilingEnable {
 		if err := os.MkdirAll(s.config.ProfilingDir, 0755); err != nil {

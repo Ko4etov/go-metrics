@@ -1,3 +1,4 @@
+// Package config предоставляет конфигурацию для сервера сбора метрик.
 package config
 
 import (
@@ -9,20 +10,22 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
+// ServerConfig содержит все параметры конфигурации сервера.
 type ServerConfig struct {
-	ServerAddress          string
-	StoreMetricsInterval   int
-	FileStorageMetricsPath string
-	RestoreMetrics         bool
-	ConnectionPool         *pgxpool.Pool
-	HashKey                string
-	AuditFile              string
-	AuditURL               string
-	ProfilingEnable        bool
-	ProfileServerAddress   string
-	ProfilingDir           string
+	ServerAddress          string        // адрес сервера
+	StoreMetricsInterval   int           // интервал сохранения метрик в секундах
+	FileStorageMetricsPath string        // путь к файлу хранения метрик
+	RestoreMetrics         bool          // восстанавливать ли метрики при старте
+	ConnectionPool         *pgxpool.Pool // пул подключений к базе данных
+	HashKey                string        // ключ для хеширования
+	AuditFile              string        // файл для аудита
+	AuditURL               string        // URL для отправки аудита
+	ProfilingEnable        bool          // включить профилирование
+	ProfileServerAddress   string        // адрес сервера профилирования
+	ProfilingDir           string        // директория для сохранения профилей
 }
 
+// New создает новую конфигурацию сервера.
 func New() (*ServerConfig, error) {
 	var poll *pgxpool.Pool
 

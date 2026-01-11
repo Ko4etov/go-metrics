@@ -12,6 +12,7 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
 )
 
+// getIPAddress извлекает IP-адрес клиента из HTTP-запроса.
 func getIPAddress(req *http.Request) string {
 	if forwarded := req.Header.Get("X-Forwarded-For"); forwarded != "" {
 		return forwarded
@@ -24,6 +25,7 @@ func getIPAddress(req *http.Request) string {
 	return ip
 }
 
+// processMetricsBatchInternal обрабатывает батч метрик и возвращает информацию для аудита.
 func (h *Handler) processMetricsBatchInternal(
 	res http.ResponseWriter,
 	req *http.Request,
@@ -66,6 +68,7 @@ func (h *Handler) processMetricsBatchInternal(
 	return metricNames, http.StatusOK, nil
 }
 
+// UpdateMetricsBatch обновляет батч метрик без аудита.
 func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request) {
 	_, statusCode, err := h.processMetricsBatchInternal(res, req, nil)
 
@@ -78,6 +81,7 @@ func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request)
 	res.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetricsBatchWithAudit возвращает обработчик для обновления батча метрик с аудитом.
 func (h *Handler) UpdateMetricsBatchWithAudit(auditSvc *audit.AuditService) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		metricNames, statusCode, err := h.processMetricsBatchInternal(res, req, auditSvc)
@@ -96,6 +100,7 @@ func (h *Handler) UpdateMetricsBatchWithAudit(auditSvc *audit.AuditService) http
 	}
 }
 
+// sendAuditEvent отправляет событие аудита асинхронно.
 func (h *Handler) sendAuditEvent(req *http.Request, metricNames []string, auditSvc *audit.AuditService) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

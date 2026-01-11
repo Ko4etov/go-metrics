@@ -1,3 +1,4 @@
+// Package db предоставляет функции для работы с базой данных.
 package db
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// NewDBConnection создает новое подключение к базе данных.
 func NewDBConnection(address string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(
 		context.Background(),

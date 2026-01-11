@@ -7,16 +7,19 @@ import (
 	"text/template"
 )
 
+// ViewData содержит данные для отображения страницы с метриками.
 type ViewData struct {
-	Title   string
-	Metrics []MetricsRecource
+	Title   string             // заголовок страницы
+	Metrics []MetricsRecource  // список метрик
 }
 
+// MetricsRecource представляет метрику для отображения в HTML.
 type MetricsRecource struct {
-	Name  string
-	Value string
+	Name  string // имя метрики
+	Value string // значение метрики
 }
 
+// GetMetrics возвращает HTML-страницу со списком всех метрик.
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	metrics := h.storage.Metrics()
 

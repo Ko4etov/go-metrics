@@ -1,3 +1,4 @@
+// Package collector реализует сбор метрик системы.
 package collector
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
+// MetricsCollector реализует сбор и хранение метрик.
 type MetricsCollector struct {
 	mu          sync.RWMutex
 	metrics     map[string]models.Metrics
@@ -20,6 +22,7 @@ type MetricsCollector struct {
 	rand        *rand.Rand
 }
 
+// New создает новый сборщик метрик.
 func New() *MetricsCollector {
 	return &MetricsCollector{
 		metrics:     make(map[string]models.Metrics),
@@ -28,6 +31,7 @@ func New() *MetricsCollector {
 	}
 }
 
+// Collect собирает метрики системы.
 func (c *MetricsCollector) Collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -95,6 +99,7 @@ func (c *MetricsCollector) Collect() {
 	c.collectGopsutilMetrics()
 }
 
+// collectGopsutilMetrics собирает метрики системы через gopsutil.
 func (c *MetricsCollector) collectGopsutilMetrics() {
 	if memStats, err := mem.VirtualMemory(); err == nil {
 		totalMemory := float64(memStats.Total)
@@ -134,10 +139,12 @@ func (c *MetricsCollector) collectGopsutilMetrics() {
 	}
 }
 
+// formatCPUutilization форматирует имя метрики загрузки CPU.
 func formatCPUutilization(index int) string {
 	return "CPUutilization" + strconv.Itoa(index+1)
 }
 
+// Metrics возвращает все собранные метрики.
 func (c *MetricsCollector) Metrics() []models.Metrics {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -150,6 +157,7 @@ func (c *MetricsCollector) Metrics() []models.Metrics {
 	return metrics
 }
 
+// PollCountReset сбрасывает счетчик опросов.
 func (c *MetricsCollector) PollCountReset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -157,6 +165,7 @@ func (c *MetricsCollector) PollCountReset() {
 	c.pollCounter = 0
 }
 
+// PollCount возвращает текущее количество опросов.
 func (c *MetricsCollector) PollCount() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

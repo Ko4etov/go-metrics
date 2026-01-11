@@ -8,11 +8,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const address string = ":8080"
-const reportInterval int = 2
-const pollInterval int = 10
-const rateLimit int = 1
+const (
+	address        string = ":8080" // адрес сервера по умолчанию
+	reportInterval int    = 2       // интервал отправки метрик по умолчанию (в секундах)
+	pollInterval   int    = 10      // интервал опроса метрик по умолчанию (в секундах)
+	rateLimit      int    = 1       // лимит запросов по умолчанию
+)
 
+// AgentParameters содержит конфигурационные параметры для агента.
 type AgentParameters struct {
 	Address        string
 	ReportInterval int
@@ -21,6 +24,7 @@ type AgentParameters struct {
 	RateLimit      int
 }
 
+// parseAgentParameters парсит параметры агента.
 func parseAgentParameters() *AgentParameters {
 	godotenv.Load()
 

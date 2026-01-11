@@ -1,3 +1,4 @@
+// Package config содержит параметры конфигурации сервера сбора метрик.
 package config
 
 import (
@@ -10,30 +11,34 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
-const address string = ":8080"
-const storeMetricsInterval int = 300
-const fileStorageMetricsPath string = "metrics.json"
-const restoreMetrics bool = true
-const profilingEnable bool = false
+const (
+	address                 = ":8080"           // Адрес сервера по умолчанию
+	storeMetricsInterval    = 300               // Интервал сохранения метрик по умолчанию
+	fileStorageMetricsPath  = "metrics.json"    // Путь к файлу метрик по умолчанию
+	restoreMetrics          = true              // Восстанавливать метрики по умолчанию
+	profilingEnable         = false             // Профилирование отключено по умолчанию
+)
 
+// ServerParameters содержит все параметры конфигурации сервера.
 type ServerParameters struct {
-	Address                string
-	StoreMetricsInterval   int
-	FileStorageMetricsPath string
-	RestoreMetrics         bool
-	DBAddress              string
-	HashKey                string
-	AuditFile              string
-	AuditURL               string
-	ProfilingEnable        bool
-	ProfileServerAddress   string
-	ProfilingDir           string
+	Address                string // Адрес сервера
+	StoreMetricsInterval   int    // Интервал сохранения метрик в секундах
+	FileStorageMetricsPath string // Путь к файлу хранения метрик
+	RestoreMetrics         bool   // Восстанавливать ли метрики при старте
+	DBAddress              string // Адрес базы данных
+	HashKey                string // Ключ для хеширования
+	AuditFile              string // Файл для аудита
+	AuditURL               string // URL для отправки аудита
+	ProfilingEnable        bool   // Включить профилирование
+	ProfileServerAddress   string // Адрес сервера профилирования
+	ProfilingDir           string // Директория для сохранения профилей
 }
 
+// parseServerParameters парсит параметры сервера из переменных окружения и флагов.
 func parseServerParameters() *ServerParameters {
 	if err := godotenv.Load(); err != nil {
-        logger.Logger.Info(".env file not loaded: %v", err)
-    }
+		logger.Logger.Info(".env file not loaded: %v", err)
+	}
 
 	addressParameter := addressParameter()
 	storeMetricsIntervalParameter := storeMetricsIntervalParameter()
@@ -64,6 +69,7 @@ func parseServerParameters() *ServerParameters {
 	}
 }
 
+// hashKeyParameter возвращает ключ для хеширования из переменных окружения или флагов.
 func hashKeyParameter() string {
 	env, exist := os.LookupEnv("KEY")
 
@@ -76,6 +82,7 @@ func hashKeyParameter() string {
 	return env
 }
 
+// dbAddressParameter возвращает адрес базы данных из переменных окружения или флагов.
 func dbAddressParameter() string {
 	dbAddress := ""
 
@@ -88,6 +95,7 @@ func dbAddressParameter() string {
 	return dbAddress
 }
 
+// addressParameter возвращает адрес сервера из переменных окружения или флагов.
 func addressParameter() string {
 	address := address
 
@@ -99,6 +107,7 @@ func addressParameter() string {
 	return address
 }
 
+// storeMetricsIntervalParameter возвращает интервал сохранения метрик.
 func storeMetricsIntervalParameter() int {
 	storeMetricsInterval := storeMetricsInterval
 
@@ -112,6 +121,7 @@ func storeMetricsIntervalParameter() int {
 	return storeMetricsInterval
 }
 
+// fileStorageMetricsPathParameter возвращает путь к файлу хранения метрик.
 func fileStorageMetricsPathParameter() string {
 	fileStorageMetricsPath := fileStorageMetricsPath
 
@@ -125,6 +135,7 @@ func fileStorageMetricsPathParameter() string {
 	return fileStorageMetricsPath
 }
 
+// restoreMetricsParameter возвращает флаг восстановления метрик.
 func restoreMetricsParameter() bool {
 	restoreMetrics := restoreMetrics
 
@@ -141,6 +152,7 @@ func restoreMetricsParameter() bool {
 	return restoreMetrics
 }
 
+// auditFileParameter возвращает путь к файлу аудита.
 func auditFileParameter() string {
 	auditFile := ""
 
@@ -153,6 +165,7 @@ func auditFileParameter() string {
 	return auditFile
 }
 
+// auditURLParameter возвращает URL для отправки аудита.
 func auditURLParameter() string {
 	AuditURL := ""
 
@@ -165,6 +178,7 @@ func auditURLParameter() string {
 	return AuditURL
 }
 
+// profilingEnableParameter возвращает флаг включения профилирования.
 func profilingEnableParameter() bool {
 	profilingEnable := profilingEnable
 
@@ -181,6 +195,7 @@ func profilingEnableParameter() bool {
 	return profilingEnable
 }
 
+// profileServerAddressParameter возвращает адрес сервера профилирования.
 func profileServerAddressParameter() string {
 	profileServer := ""
 
@@ -193,6 +208,7 @@ func profileServerAddressParameter() string {
 	return profileServer
 }
 
+// profileDirParameter возвращает директорию для сохранения профилей.
 func profileDirParameter() string {
 	profileDir := ""
 

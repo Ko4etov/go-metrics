@@ -1,8 +1,13 @@
+// Package profiler предоставляет инструменты для профилирования приложения.
+//
+// Пакет включает:
+// - Запуск HTTP-сервера для pprof
+// - Сохранение профилей памяти на диск
+// - Автоматическое создание дампов памяти
 package profiler
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	_ "net/http/pprof" // автоматически добавляет handlers для pprof
 	"os"
@@ -14,15 +19,23 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
+// StartProfiling запускает HTTP-сервер для профилирования pprof.
+//
+// Параметр addr определяет адрес, на котором будет запущен сервер.
 func StartProfiling(addr string) {
 	go func() {
-		log.Printf("Starting pprof server on %s", addr)
+		logger.Logger.Infof("Starting pprof server on %s", addr)
 		if err := http.ListenAndServe(addr, nil); err != nil {
-			log.Printf("pprof server failed: %v", err)
+			logger.Logger.Errorf("pprof server failed: %v", err)
 		}
 	}()
 }
 
+// SaveProfiling сохраняет профиль памяти после указанной длительности.
+//
+// Параметры:
+//   - dir: директория для сохранения профиля
+//   - duration: время через которое будет сделан дамп памяти
 func SaveProfiling(dir string, duration time.Duration) {
 	go func() {
 		time.Sleep(duration)
@@ -34,6 +47,10 @@ func SaveProfiling(dir string, duration time.Duration) {
 	}()
 }
 
+// SaveHeapProfile сохраняет профиль памяти в файл.
+//
+// Параметр filename определяет путь к файлу для сохранения профиля.
+// Возвращает ошибку, если не удалось создать файл или записать профиль.
 func SaveHeapProfile(filename string) error {
 	f, err := os.Create(filename)
 	if err != nil {
@@ -47,6 +64,5 @@ func SaveHeapProfile(filename string) error {
 		return fmt.Errorf("could not write memory profile: %w", err)
 	}
 
-	log.Printf("Heap profile saved to %s", filename)
 	return nil
 }

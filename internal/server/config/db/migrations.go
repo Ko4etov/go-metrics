@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
+// RunMigrations запускает миграции базы данных.
 func RunMigrations(pool *pgxpool.Pool) error {
 
 	db := stdlib.OpenDBFromPool(pool)
