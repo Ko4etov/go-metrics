@@ -71,9 +71,9 @@ func parseServerParameters() *ServerParameters {
 
 // hashKeyParameter возвращает ключ для хеширования из переменных окружения или флагов.
 func hashKeyParameter() string {
-	env, exist := os.LookupEnv("KEY")
+	env, ok := os.LookupEnv("KEY")
 
-	if !exist {
+	if !ok {
 		os.Exit(2)
 	}
 
@@ -86,7 +86,7 @@ func hashKeyParameter() string {
 func dbAddressParameter() string {
 	dbAddress := ""
 
-	if env, exist := os.LookupEnv("DATABASE_DSN"); exist {
+	if env, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		dbAddress = env
 	}
 
@@ -99,7 +99,7 @@ func dbAddressParameter() string {
 func addressParameter() string {
 	address := address
 
-	if env, exist := os.LookupEnv("ADDRESS"); exist {
+	if env, ok := os.LookupEnv("ADDRESS"); ok {
 		address = env
 	}
 	flag.StringVar(&address, "a", address, "Server address")
@@ -111,7 +111,7 @@ func addressParameter() string {
 func storeMetricsIntervalParameter() int {
 	storeMetricsInterval := storeMetricsInterval
 
-	if storeMetricsIntervalEnv, exist := os.LookupEnv("STORE_INTERVAL"); exist {
+	if storeMetricsIntervalEnv, ok := os.LookupEnv("STORE_INTERVAL"); ok {
 		if val, err := strconv.Atoi(storeMetricsIntervalEnv); err == nil {
 			storeMetricsInterval = val
 		}
@@ -125,7 +125,7 @@ func storeMetricsIntervalParameter() int {
 func fileStorageMetricsPathParameter() string {
 	fileStorageMetricsPath := fileStorageMetricsPath
 
-	if fileStorageMetricsPathEnv, exist := os.LookupEnv("FILE_STORAGE_PATH"); exist {
+	if fileStorageMetricsPathEnv, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		fileStorageMetricsPath = fileStorageMetricsPathEnv
 		return fileStorageMetricsPath
 	}
@@ -139,9 +139,9 @@ func fileStorageMetricsPathParameter() string {
 func restoreMetricsParameter() bool {
 	restoreMetrics := restoreMetrics
 
-	restoreMetricsEnv, exist := os.LookupEnv("RESTORE")
+	restoreMetricsEnv, ok := os.LookupEnv("RESTORE")
 
-	if exist {
+	if ok {
 		if val, err := strconv.ParseBool(restoreMetricsEnv); err == nil {
 			restoreMetrics = val
 		}
@@ -156,7 +156,7 @@ func restoreMetricsParameter() bool {
 func auditFileParameter() string {
 	auditFile := ""
 
-	if auditFileEnv, exist := os.LookupEnv("AUDIT_FILE"); exist {
+	if auditFileEnv, ok := os.LookupEnv("AUDIT_FILE"); ok {
 		return auditFileEnv
 	}
 
@@ -169,7 +169,7 @@ func auditFileParameter() string {
 func auditURLParameter() string {
 	AuditURL := ""
 
-	if AuditURLEnv, exist := os.LookupEnv("AUDIT_URL"); exist {
+	if AuditURLEnv, ok := os.LookupEnv("AUDIT_URL"); ok {
 		return AuditURLEnv
 	}
 
@@ -182,9 +182,9 @@ func auditURLParameter() string {
 func profilingEnableParameter() bool {
 	profilingEnable := profilingEnable
 
-	profilingEnableEnv, exist := os.LookupEnv("PROFILE")
+	profilingEnableEnv, ok := os.LookupEnv("PROFILE")
 
-	if exist {
+	if ok {
 		if val, err := strconv.ParseBool(profilingEnableEnv); err == nil {
 			profilingEnable = val
 		}
@@ -199,7 +199,7 @@ func profilingEnableParameter() bool {
 func profileServerAddressParameter() string {
 	profileServer := ""
 
-	if profileServerEnv, exist := os.LookupEnv("PROFILE_ADDR"); exist {
+	if profileServerEnv, ok := os.LookupEnv("PROFILE_ADDR"); ok {
 		return profileServerEnv
 	}
 
@@ -212,7 +212,7 @@ func profileServerAddressParameter() string {
 func profileDirParameter() string {
 	profileDir := ""
 
-	if ProfileDirEnv, exist := os.LookupEnv("PROFILE_DIR"); exist {
+	if ProfileDirEnv, ok := os.LookupEnv("PROFILE_DIR"); ok {
 		return ProfileDirEnv
 	}
 

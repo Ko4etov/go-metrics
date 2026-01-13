@@ -10,6 +10,7 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 // getIPAddress извлекает IP-адрес клиента из HTTP-запроса.
@@ -112,6 +113,6 @@ func (h *Handler) sendAuditEvent(req *http.Request, metricNames []string, auditS
 	}
 
 	if err := auditSvc.Notify(ctx, event); err != nil {
-		fmt.Printf("[audit] Failed to send audit event: %v\n", err)
+		logger.Logger.Infof("[audit] Failed to send audit event: %v\n", err)
 	}
 }

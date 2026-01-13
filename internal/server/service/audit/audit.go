@@ -119,8 +119,6 @@ func NewFileAuditor(filePath string) (*FileAuditor, error) {
 
 // Audit записывает событие аудита в файл.
 func (fa *FileAuditor) Audit(ctx context.Context, event AuditEvent) error {
-	fa.mu.Lock()
-	defer fa.mu.Unlock()
 
 	data, err := json.Marshal(event)
 	if err != nil {
@@ -128,6 +126,9 @@ func (fa *FileAuditor) Audit(ctx context.Context, event AuditEvent) error {
 	}
 
 	data = append(data, '\n')
+
+	fa.mu.Lock()
+	defer fa.mu.Unlock()
 
 	if _, err := fa.file.Write(data); err != nil {
 		return fmt.Errorf("failed to write to audit file: %w", err)
@@ -183,6 +184,9 @@ func (ha *HTTPAuditor) Audit(ctx context.Context, event AuditEvent) error {
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("audit server returned status %d (failed to read body: %w)", resp.StatusCode, err)
+		}
 		return fmt.Errorf("audit server returned status %d: %s", resp.StatusCode, string(body))
 	}
 
