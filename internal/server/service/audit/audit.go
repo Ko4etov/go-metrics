@@ -183,7 +183,7 @@ func (ha *HTTPAuditor) Audit(ctx context.Context, event AuditEvent) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("audit server returned status %d (failed to read body: %w)", resp.StatusCode, err)
 		}
