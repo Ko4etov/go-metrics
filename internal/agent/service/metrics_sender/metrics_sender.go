@@ -9,16 +9,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
 )
 
 // MetricsSenderService отправляет метрики на сервер с поддержкой хэширования.
@@ -27,9 +25,8 @@ type MetricsSenderService struct {
 	HashKey       string
 	Client        *resty.Client
 	BatchSize     int
-	MaxRetries    int
-	RetryDelays   []time.Duration
 	RateLimit     int
+	RetiebleAgent *retriableagent.RetriableAgent
 	jobs          chan []models.Metrics
 	wg            sync.WaitGroup
 }
@@ -40,13 +37,14 @@ func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderServ
 		SetTimeout(5 * time.Second).
 		SetRetryCount(2)
 
+	retriableAgent := retriableagent.New(3, []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second})
+
 	sender := &MetricsSenderService{
 		ServerAddress: serverAddress,
 		HashKey:       hashKey,
 		Client:        client,
 		BatchSize:     10,
-		MaxRetries:    3,
-		RetryDelays:   []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second},
+		RetiebleAgent: retriableAgent,
 		RateLimit:     rateLimit,
 		jobs:          make(chan []models.Metrics, rateLimit),
 	}
@@ -67,7 +65,7 @@ func (s *MetricsSenderService) worker() {
 	defer s.wg.Done()
 
 	for metrics := range s.jobs {
-		s.sendWithRetry(func() error {
+		s.RetiebleAgent.Send(func() error {
 			return s.sendBatch(metrics)
 		})
 	}
@@ -124,88 +122,6 @@ func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
 		default:
 		}
 	}
-}
-
-func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
-	var lastErr error
-
-	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
-		err := operation()
-		if err == nil {
-			return nil
-		}
-
-		lastErr = err
-
-		if !s.isRetriableError(err) {
-			return fmt.Errorf("non-retriable error: %w", err)
-		}
-
-		if attempt < s.MaxRetries {
-			delay := s.RetryDelays[attempt]
-			time.Sleep(delay)
-		}
-	}
-
-	return fmt.Errorf("failed after %d retries: %w", s.MaxRetries, lastErr)
-}
-
-func (s *MetricsSenderService) isRetriableError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if s.isNetworkError(err) {
-		return true
-	}
-
-	if s.isRetriableByContent(err) {
-		return true
-	}
-
-	if s.isRetriableHTTPStatus(err) {
-		return true
-	}
-
-	return false
-}
-
-// isNetworkError проверяет сетевые ошибки.
-func (s *MetricsSenderService) isNetworkError(err error) bool {
-	switch e := err.(type) {
-	case *url.Error:
-		return true
-	case net.Error:
-		return e.Timeout()
-	}
-	return false
-}
-
-// isRetriableByContent проверяет ошибки по их текстовому содержимому.
-func (s *MetricsSenderService) isRetriableByContent(err error) bool {
-	errorStr := strings.ToLower(err.Error())
-
-	retriablePatterns := []string{
-		"timeout", "connection refused", "connection reset",
-		"network", "temporary", "unavailable", "dial tcp",
-		"no such host", "EOF", "broken pipe", "connection aborted",
-		"i/o timeout", "network is unreachable", "reset by peer",
-		"service unavailable", "bad gateway", "gateway timeout",
-	}
-
-	for _, pattern := range retriablePatterns {
-		if strings.Contains(errorStr, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
-	errorStr := strings.ToLower(err.Error())
-
-	return strings.Contains(errorStr, "server error: 400")
 }
 
 func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]models.Metrics {

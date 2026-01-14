@@ -2,16 +2,16 @@
 package audit
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
+	"github.com/go-resty/resty/v2"
 )
 
 // AuditEvent представляет событие аудита.
@@ -149,17 +149,23 @@ func (fa *FileAuditor) Close() error {
 
 // HTTPAuditor реализует аудит по HTTP.
 type HTTPAuditor struct {
-	url    string
-	client *http.Client
+	url           string
+	Client        *resty.Client
+	RetiebleAgent *retriableagent.RetriableAgent
 }
 
 // NewHTTPAuditor создает новый HTTP аудитор.
 func NewHTTPAuditor(url string) *HTTPAuditor {
+	client := resty.New().
+		SetTimeout(5 * time.Second).
+		SetRetryCount(2)
+
+	retriableAgent := retriableagent.New(3, []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second})
+
 	return &HTTPAuditor{
-		url: url,
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		url:           url,
+		Client:        client,
+		RetiebleAgent: retriableAgent,
 	}
 }
 
@@ -170,24 +176,17 @@ func (ha *HTTPAuditor) Audit(ctx context.Context, event AuditEvent) error {
 		return fmt.Errorf("failed to marshal audit event: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", ha.url, bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	req := ha.Client.R().
+		SetBody(data).
+		SetHeader("Content-Type", "application/json")
 
-	resp, err := ha.client.Do(req)
+	resp, err := req.Post(ha.url)
 	if err != nil {
 		return fmt.Errorf("failed to send audit event: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("audit server returned status %d (failed to read body: %w)", resp.StatusCode, err)
-		}
-		return fmt.Errorf("audit server returned status %d: %s", resp.StatusCode, string(body))
+	
+	if resp.IsError() {
+		return fmt.Errorf("server error: %s", resp.Status())
 	}
 
 	return nil
