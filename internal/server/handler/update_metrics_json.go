@@ -10,13 +10,15 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
+// getIPAddress извлекает IP-адрес клиента из HTTP-запроса.
 func getIPAddress(req *http.Request) string {
 	if forwarded := req.Header.Get("X-Forwarded-For"); forwarded != "" {
 		return forwarded
 	}
-	
+
 	ip, _, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
 		return req.RemoteAddr
@@ -24,17 +26,18 @@ func getIPAddress(req *http.Request) string {
 	return ip
 }
 
+// processMetricsBatchInternal обрабатывает батч метрик и возвращает информацию для аудита.
 func (h *Handler) processMetricsBatchInternal(
-	res http.ResponseWriter, 
+	res http.ResponseWriter,
 	req *http.Request,
 	auditSvc *audit.AuditService,
 ) ([]string, int, error) {
-	
+
 	if req.Header.Get("Content-Type") != "application/json" {
 		return nil, http.StatusBadRequest, fmt.Errorf("Content-Type must be application/json")
 	}
 
-	var metrics []models.Metrics
+	metrics := make([]models.Metrics, 0, 10)
 	if err := json.NewDecoder(req.Body).Decode(&metrics); err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("invalid JSON: %w", err)
 	}
@@ -43,30 +46,33 @@ func (h *Handler) processMetricsBatchInternal(
 		return nil, http.StatusBadRequest, fmt.Errorf("empty metrics batch")
 	}
 
-	var validMetrics []models.Metrics
-	var metricNames []string
-	for _, metric := range metrics {
-		if err := h.validateMetric(&metric); err != nil {
+	for i := range metrics {
+		if err := h.validateMetric(&metrics[i]); err != nil {
 			return nil, http.StatusBadRequest, fmt.Errorf("invalid metric: %w", err)
-		}
-		validMetrics = append(validMetrics, metric)
-		
-		if auditSvc != nil {
-			metricNames = append(metricNames, metric.ID)
 		}
 	}
 
-	if err := h.storage.UpdateMetricsBatch(validMetrics); err != nil {
-		return metricNames, http.StatusInternalServerError, 
+	var metricNames []string
+	if auditSvc != nil {
+		metricNames = make([]string, 0, len(metrics))
+
+		for i := range metrics {
+			metricNames = append(metricNames, metrics[i].ID)
+		}
+	}
+
+	if err := h.storage.UpdateMetricsBatch(metrics); err != nil {
+		return metricNames, http.StatusInternalServerError,
 			fmt.Errorf("failed to update metrics: %w", err)
 	}
 
 	return metricNames, http.StatusOK, nil
 }
 
+// UpdateMetricsBatch обновляет батч метрик без аудита.
 func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request) {
 	_, statusCode, err := h.processMetricsBatchInternal(res, req, nil)
-	
+
 	if err != nil {
 		http.Error(res, err.Error(), statusCode)
 		return
@@ -76,10 +82,11 @@ func (h *Handler) UpdateMetricsBatch(res http.ResponseWriter, req *http.Request)
 	res.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetricsBatchWithAudit возвращает обработчик для обновления батча метрик с аудитом.
 func (h *Handler) UpdateMetricsBatchWithAudit(auditSvc *audit.AuditService) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		metricNames, statusCode, err := h.processMetricsBatchInternal(res, req, auditSvc)
-		
+
 		if err != nil {
 			http.Error(res, err.Error(), statusCode)
 			return
@@ -94,6 +101,7 @@ func (h *Handler) UpdateMetricsBatchWithAudit(auditSvc *audit.AuditService) http
 	}
 }
 
+// sendAuditEvent отправляет событие аудита асинхронно.
 func (h *Handler) sendAuditEvent(req *http.Request, metricNames []string, auditSvc *audit.AuditService) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -105,6 +113,6 @@ func (h *Handler) sendAuditEvent(req *http.Request, metricNames []string, auditS
 	}
 
 	if err := auditSvc.Notify(ctx, event); err != nil {
-		fmt.Printf("[audit] Failed to send audit event: %v\n", err)
+		logger.Logger.Infof("[audit] Failed to send audit event: %v\n", err)
 	}
 }

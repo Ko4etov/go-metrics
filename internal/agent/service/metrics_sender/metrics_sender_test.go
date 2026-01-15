@@ -10,15 +10,6 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
-// Вспомогательные функции
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func int64Ptr(i int64) *int64 {
-	return &i
-}
-
 func TestNewSender(t *testing.T) {
 	sender := New("localhost:8080", "", 3)
 
@@ -124,7 +115,6 @@ func TestBuildURL_EdgeCases(t *testing.T) {
 }
 
 func TestSendMetric_Success(t *testing.T) {
-	// Создаем тестовый сервер
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST method, got %s", r.Method)
@@ -220,13 +210,10 @@ func TestSendMetrics_MultipleMetrics(t *testing.T) {
 
 	sender.SendMetrics(metrics)
 
-	// Даем время worker'ам обработать
 	time.Sleep(100 * time.Millisecond)
 
-	// Останавливаем sender чтобы дождаться завершения worker'ов
 	sender.Stop()
 
-	// Теперь должно быть 1 batch запрос вместо 3 отдельных
 	count := atomic.LoadInt32(&requestCount)
 	if count != 1 {
 		t.Errorf("Expected 1 batch request, got %d", count)
@@ -241,7 +228,6 @@ func TestSendMetrics_PartialFailure(t *testing.T) {
 		atomic.AddInt32(&requestCount, 1)
 		callCount++
 
-		// Первый вызов падает, остальные успешны
 		if callCount == 1 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -264,25 +250,21 @@ func TestSendMetrics_PartialFailure(t *testing.T) {
 
 	sender.SendMetrics(metrics)
 
-	// Даем время на retry логику
 	time.Sleep(500 * time.Millisecond)
 
-	// Останавливаем sender
 	sender.Stop()
 
-	// Проверяем количество запросов (должно быть несколько из-за retry)
 	count := atomic.LoadInt32(&requestCount)
 	if count < 2 {
 		t.Errorf("Expected at least 2 requests due to retries, got %d", count)
 	}
 }
 
-// Новый тест для проверки отправки по одной метрике
 func TestSendMetricJSON_Success(t *testing.T) {
 	var requestCount int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&requestCount, 1)
-		
+
 		if r.Method != "POST" {
 			t.Errorf("Expected POST method, got %s", r.Method)
 		}

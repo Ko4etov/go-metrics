@@ -1,3 +1,4 @@
+// Package metricssender предоставляет функциональность отправки метрик на сервер.
 package metricssender
 
 import (
@@ -8,43 +9,42 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
+	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
 )
 
-// MetricsSenderService отправляет метрики на сервер с поддержкой хэширования
+// MetricsSenderService отправляет метрики на сервер с поддержкой хэширования.
 type MetricsSenderService struct {
 	ServerAddress string
 	HashKey       string
 	Client        *resty.Client
 	BatchSize     int
-	MaxRetries    int
-	RetryDelays   []time.Duration
 	RateLimit     int
+	RetiebleAgent *retriableagent.RetriableAgent
 	jobs          chan []models.Metrics
 	wg            sync.WaitGroup
 }
 
-// New создает новый отправитель
+// New создает новый отправитель метрик.
 func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderService {
 	client := resty.New().
 		SetTimeout(5 * time.Second).
 		SetRetryCount(2)
+
+	retriableAgent := retriableagent.New(3, []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second})
 
 	sender := &MetricsSenderService{
 		ServerAddress: serverAddress,
 		HashKey:       hashKey,
 		Client:        client,
 		BatchSize:     10,
-		MaxRetries:    3,
-		RetryDelays:   []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second},
+		RetiebleAgent: retriableAgent,
 		RateLimit:     rateLimit,
 		jobs:          make(chan []models.Metrics, rateLimit),
 	}
@@ -62,16 +62,15 @@ func (s *MetricsSenderService) startWorkers() {
 }
 
 func (s *MetricsSenderService) worker() {
-    defer s.wg.Done()
+	defer s.wg.Done()
 
-    for metrics := range s.jobs {
-        s.sendWithRetry(func() error {
-            return s.sendBatch(metrics)
-        })
-    }
+	for metrics := range s.jobs {
+		s.RetiebleAgent.Send(func() error {
+			return s.sendBatch(metrics)
+		})
+	}
 }
 
-// calculateHash вычисляет HMAC-SHA256 хеш для данных
 func (s *MetricsSenderService) calculateHash(data []byte) string {
 	if s.HashKey == "" {
 		return ""
@@ -82,7 +81,6 @@ func (s *MetricsSenderService) calculateHash(data []byte) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// addHashHeaders добавляет заголовки хэширования к запросу
 func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *resty.Request {
 	if s.HashKey != "" && len(data) > 0 {
 		hash := s.calculateHash(data)
@@ -91,7 +89,6 @@ func (s *MetricsSenderService) addHashHeaders(req *resty.Request, data []byte) *
 	return req
 }
 
-// verifyResponseHash проверяет хеш ответа от сервера
 func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 	if s.HashKey == "" {
 		return nil // Хеширование отключено
@@ -102,7 +99,6 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 		return nil // Сервер может не отправлять хеш для некоторых ответов
 	}
 
-	// Вычисляем ожидаемый хеш от тела ответа
 	expectedHash := s.calculateHash(resp.Body())
 	if !hmac.Equal([]byte(receivedHash), []byte(expectedHash)) {
 		return fmt.Errorf("response hash verification failed: received %s, expected %s",
@@ -112,108 +108,20 @@ func (s *MetricsSenderService) verifyResponseHash(resp *resty.Response) error {
 	return nil
 }
 
-// SendMetrics отправляет все метрики на сервер батчами с хэшированием
+// SendMetrics отправляет метрики на сервер.
 func (s *MetricsSenderService) SendMetrics(metrics []models.Metrics) {
-    if len(metrics) == 0 {
-        return
-    }
+	if len(metrics) == 0 {
+		return
+	}
 
-    // Разбиваем на батчи
-    batches := s.splitIntoBatches(metrics)
-    
-    // Отправляем каждый батч в worker pool
-    for _, batch := range batches {
-        select {
-			case s.jobs <- batch:
-			default:
-        }
-    }
-}
+	batches := s.splitIntoBatches(metrics)
 
-func (s *MetricsSenderService) sendWithRetry(operation func() error) error {
-	var lastErr error
-
-	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
-		err := operation()
-		if err == nil {
-			return nil
-		}
-
-		lastErr = err
-
-		if !s.isRetriableError(err) {
-			return fmt.Errorf("non-retriable error: %w", err)
-		}
-
-		// Если это не последняя попытка, ждем перед повторной попыткой
-		if attempt < s.MaxRetries {
-			delay := s.RetryDelays[attempt]
-			time.Sleep(delay)
+	for _, batch := range batches {
+		select {
+		case s.jobs <- batch:
+		default:
 		}
 	}
-
-	return fmt.Errorf("failed after %d retries: %w", s.MaxRetries, lastErr)
-}
-
-func (s *MetricsSenderService) isRetriableError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	// Проверяем типы ошибок
-	if s.isNetworkError(err) {
-		return true
-	}
-
-	// Проверяем по содержимому ошибки
-	if s.isRetriableByContent(err) {
-		return true
-	}
-
-	// Проверяем HTTP статусы
-	if s.isRetriableHTTPStatus(err) {
-		return true
-	}
-
-	return false
-}
-
-// isNetworkError проверяет сетевые ошибки
-func (s *MetricsSenderService) isNetworkError(err error) bool {
-	switch e := err.(type) {
-	case *url.Error:
-		return true
-	case net.Error:
-		return e.Timeout()
-	}
-	return false
-}
-
-// isRetriableByContent проверяет ошибки по их текстовому содержимому
-func (s *MetricsSenderService) isRetriableByContent(err error) bool {
-	errorStr := strings.ToLower(err.Error())
-
-	retriablePatterns := []string{
-		"timeout", "connection refused", "connection reset",
-		"network", "temporary", "unavailable", "dial tcp",
-		"no such host", "EOF", "broken pipe", "connection aborted",
-		"i/o timeout", "network is unreachable", "reset by peer",
-		"service unavailable", "bad gateway", "gateway timeout",
-	}
-
-	for _, pattern := range retriablePatterns {
-		if strings.Contains(errorStr, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *MetricsSenderService) isRetriableHTTPStatus(err error) bool {
-	errorStr := strings.ToLower(err.Error())
-    
-    return strings.Contains(errorStr, "server error: 400")
 }
 
 func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]models.Metrics {
@@ -230,7 +138,7 @@ func (s *MetricsSenderService) splitIntoBatches(metrics []models.Metrics) [][]mo
 	return batches
 }
 
-// sendBatch отправляет один батч метрик на сервер с хэшированием
+// sendBatch отправляет один батч метрик на сервер с хэшированием.
 func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	if len(metrics) == 0 {
 		return nil
@@ -272,7 +180,7 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	return nil
 }
 
-// compressData сжимает данные с помощью gzip
+// compressData сжимает данные с помощью gzip.
 func (s *MetricsSenderService) compressData(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
@@ -289,7 +197,7 @@ func (s *MetricsSenderService) compressData(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// SendMetric отправляет одну метрику текстовым форматом
+// SendMetric отправляет одну метрику текстовым форматом.
 func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
 	url := s.BuildURL(metric)
 
@@ -307,7 +215,7 @@ func (s *MetricsSenderService) SendMetric(metric models.Metrics) error {
 	return nil
 }
 
-// SendMetricJSON отправляет одну метрику JSON форматом с хэшированием
+// SendMetricJSON отправляет одну метрику JSON форматом с хэшированием.
 func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 	url := fmt.Sprintf("http://%s/update/", s.ServerAddress)
 
@@ -316,7 +224,6 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		return fmt.Errorf("marshal metric failed: %w", err)
 	}
 
-	// Сжимаем данные
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(jsonData); err != nil {
@@ -345,7 +252,6 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 		return fmt.Errorf("server error: %s", resp.Status())
 	}
 
-	// Проверяем хеш ответа
 	if err := s.verifyResponseHash(resp); err != nil {
 		return fmt.Errorf("response hash verification failed: %w", err)
 	}
@@ -353,6 +259,7 @@ func (s *MetricsSenderService) SendMetricJSON(metric models.Metrics) error {
 	return nil
 }
 
+// BuildURL строит URL для отправки одной метрики текстовым форматом.
 func (s *MetricsSenderService) BuildURL(metric models.Metrics) string {
 	var value string
 
@@ -367,7 +274,8 @@ func (s *MetricsSenderService) BuildURL(metric models.Metrics) string {
 		s.ServerAddress, metric.MType, metric.ID, value)
 }
 
+// Stop останавливает отправщик метрик и дожидается завершения всех воркеров.
 func (s *MetricsSenderService) Stop() {
-    close(s.jobs)
-    s.wg.Wait()
+	close(s.jobs)
+	s.wg.Wait()
 }

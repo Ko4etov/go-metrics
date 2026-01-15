@@ -1,22 +1,26 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 	"text/template"
 )
 
-type ViewData struct{
-    Title string
-    Metrics []MetricsRecource
+// ViewData содержит данные для отображения страницы с метриками.
+type ViewData struct {
+	Title   string             // заголовок страницы
+	Metrics []MetricsRecource  // список метрик
 }
 
+// MetricsRecource представляет метрику для отображения в HTML.
 type MetricsRecource struct {
-	Name string
-	Value string
+	Name  string // имя метрики
+	Value string // значение метрики
 }
 
+// GetMetrics возвращает HTML-страницу со списком всех метрик.
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	metrics := h.storage.Metrics()
 
@@ -29,14 +33,14 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		case "gauge":
 			if metric.Value != nil {
 				MetricsSlice = append(MetricsSlice, MetricsRecource{
-					Name: metric.ID,
+					Name:  metric.ID,
 					Value: fmt.Sprintf("%.2f", *metric.Value),
 				})
 			}
 		case "counter":
 			if metric.Delta != nil {
 				MetricsSlice = append(MetricsSlice, MetricsRecource{
-					Name: metric.ID,
+					Name:  metric.ID,
 					Value: fmt.Sprintf("%d", *metric.Delta),
 				})
 			}
@@ -44,9 +48,15 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Slice(MetricsSlice, func(i, j int) bool {
-        return MetricsSlice[i].Name < MetricsSlice[j].Name
-    })
+		return MetricsSlice[i].Name < MetricsSlice[j].Name
+	})
 
-	tmpl, _ := template.ParseFiles("internal/server/templates/metrics.html")
-	tmpl.Execute(w, MetricsSlice)
+	tmpl, err := template.ParseFiles("internal/server/templates/metrics.html")
+    if err != nil {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(MetricsSlice)
+        return
+    }
+    
+    tmpl.Execute(w, MetricsSlice)
 }

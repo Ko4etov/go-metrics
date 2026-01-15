@@ -7,6 +7,7 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
+// UpdateMetricJSON обновляет метрику из JSON-запроса.
 func (h *Handler) UpdateMetricJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "Content-Type must be application/json", http.StatusBadRequest)

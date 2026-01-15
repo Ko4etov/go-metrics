@@ -7,12 +7,12 @@ import (
 )
 
 type MockMetricsSenderService struct {
-    SendCount int
-    mu        sync.Mutex
+	SendCount int
+	mu        sync.Mutex
 }
 
 func (m *MockMetricsSenderService) SendMetrics(metrics []models.Metrics) {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    m.SendCount++
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.SendCount++
 }

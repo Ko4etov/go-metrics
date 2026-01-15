@@ -1,3 +1,4 @@
+// Package handler предоставляет обработчики HTTP-запросов для сервера метрик.
 package handler
 
 import (
@@ -5,6 +6,7 @@ import (
 	"net/http"
 )
 
+// DBPing проверяет доступность базы данных.
 func (h *Handler) DBPing(res http.ResponseWriter, req *http.Request) {
 	if h.pgx == nil {
 		http.Error(res, "Can't connect to DB", http.StatusInternalServerError)

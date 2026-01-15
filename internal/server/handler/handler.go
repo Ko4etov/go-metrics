@@ -3,35 +3,36 @@ package handler
 import (
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/server/interfaces"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Handler обрабатывает HTTP-запросы для работы с метриками.
 type Handler struct {
-	storage interfaces.Storage
-	pgx *pgxpool.Pool
+	storage interfaces.Storage // хранилище метрик
+	pgx     *pgxpool.Pool      // пул подключений к базе данных
 }
 
+// New создает новый обработчик.
 func New(s interfaces.Storage, pgx *pgxpool.Pool) *Handler {
-	return &Handler {
+	return &Handler{
 		storage: s,
-		pgx: pgx,
+		pgx:     pgx,
 	}
 }
 
+// validateMetric проверяет валидность метрики.
 func (h *Handler) validateMetric(metric *models.Metrics) error {
-	// Проверяем тип метрики
 	if metric.MType != models.Gauge && metric.MType != models.Counter {
 		return fmt.Errorf("invalid metric type: %s", metric.MType)
 	}
 
-	// Проверяем наличие ID
 	if metric.ID == "" {
 		return fmt.Errorf("metric ID is required")
 	}
 
-	// Проверяем значения в зависимости от типа
 	switch metric.MType {
 	case models.Gauge:
 		if metric.Value == nil {
