@@ -10,18 +10,17 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
+// RunMigrations запускает миграции базы данных.
 func RunMigrations(pool *pgxpool.Pool) error {
-	// Конвертируем pgxpool в database/sql соединение
+
 	db := stdlib.OpenDBFromPool(pool)
 	defer db.Close()
 
-	// Создаем драйвер для миграций
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
-	// Создаем экземпляр мигратора
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://internal/server/migrations",
 		"metrics",
@@ -31,7 +30,6 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
-	// Применяем миграции
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to apply migrations: %w", err)
 	}

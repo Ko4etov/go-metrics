@@ -1,29 +1,34 @@
+// Package logger предоставляет инициализацию и глобальный экземпляр логгера.
 package logger
 
 import (
 	"go.uber.org/zap"
 )
 
+// Logger - глобальный экземпляр логгера.
 var Logger zap.SugaredLogger
 
+// Initialize инициализирует логгер с указанным уровнем логирования.
+//
+// Параметр level определяет уровень логирования (например: "debug", "info", "warn", "error").
+// Возвращает ошибку, если уровень логирования невалиден или произошла ошибка инициализации.
 func Initialize(level string) error {
-   // преобразуем текстовый уровень логирования в zap.AtomicLevel
-    lvl, err := zap.ParseAtomicLevel(level)
-    if err != nil {
-        return err
-    }
-    // создаём новую конфигурацию логера
-    cfg := zap.NewProductionConfig()
-    // устанавливаем уровень
-    cfg.Level = lvl
-    // создаём логер на основе конфигурации
-    zl, err := cfg.Build()
-    if err != nil {
-        return err
-    }
 
-    // устанавливаем синглтон
-    Logger = *zl.Sugar()
+	lvl, err := zap.ParseAtomicLevel(level)
+	if err != nil {
+		return err
+	}
 
-    return nil
+	cfg := zap.NewProductionConfig()
+
+	cfg.Level = lvl
+
+	zl, err := cfg.Build()
+	if err != nil {
+		return err
+	}
+
+	Logger = *zl.Sugar()
+
+	return nil
 }

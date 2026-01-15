@@ -1,21 +1,25 @@
+// Package router предоставляет маршрутизатор HTTP-запросов для сервера метрик.
 package router
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/Ko4etov/go-metrics/internal/server/handler"
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// RouteConfig содержит конфигурацию для маршрутизатора.
 type RouteConfig struct {
-	Storage *storage.MetricsStorage
-	Pgx *pgxpool.Pool
-	HashKey string
-	AuditSvc *audit.AuditService
+	Storage  *storage.MetricsStorage // хранилище метрик
+	Pgx      *pgxpool.Pool           // пул подключений к базе данных
+	HashKey  string                  // ключ для хеширования
+	AuditSvc *audit.AuditService     // сервис аудита (опционально)
 }
 
+// New создает новый маршрутизатор с настройкой всех middleware и обработчиков.
 func New(config *RouteConfig) *chi.Mux {
 	metricHandler := handler.New(config.Storage, config.Pgx)
 	hashConfig := &middlewares.HashConfig{
@@ -28,7 +32,6 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Use(middlewares.WithHashing(hashConfig))
 	r.Use(middlewares.WithLogging)
 
-	// Объявляем маршруты
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 	r.Post("/update/", metricHandler.UpdateMetricJSON)
 	if config.AuditSvc != nil {
@@ -42,5 +45,5 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
-	return r;
+	return r
 }

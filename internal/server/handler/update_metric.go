@@ -5,10 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/Ko4etov/go-metrics/internal/models"
 )
 
+// UpdateMetric обновляет метрику из URL-параметров.
 func (h *Handler) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 
 	metricType := chi.URLParam(req, "metricType")

@@ -1,7 +1,9 @@
+// Package interfaces содержит определения интерфейсов для системы сбора метрик.
 package interfaces
 
 import "github.com/Ko4etov/go-metrics/internal/models"
 
+// Storage определяет интерфейс хранилища метрик.
 type Storage interface {
 	GaugeMetric(name string) (string, error)
 	CounterMetric(name string) (string, error)

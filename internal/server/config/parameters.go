@@ -1,3 +1,4 @@
+// Package config содержит параметры конфигурации сервера сбора метрик.
 package config
 
 import (
@@ -6,27 +7,39 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
-const address string = ":8080"
-const storeMetricsInterval int = 300
-const fileStorageMetricsPath string = "metrics.json"
-const restoreMetrics bool = true
+const (
+	address                 = ":8080"           // Адрес сервера по умолчанию
+	storeMetricsInterval    = 300               // Интервал сохранения метрик по умолчанию
+	fileStorageMetricsPath  = "metrics.json"    // Путь к файлу метрик по умолчанию
+	restoreMetrics          = true              // Восстанавливать метрики по умолчанию
+	profilingEnable         = false             // Профилирование отключено по умолчанию
+)
 
+// ServerParameters содержит все параметры конфигурации сервера.
 type ServerParameters struct {
-	Address string
-	StoreMetricsInterval int
-	FileStorageMetricsPath string
-	RestoreMetrics bool
-	DBAddress string
-	HashKey string
-	AuditFile string
-	AuditURL string
+	Address                string // Адрес сервера
+	StoreMetricsInterval   int    // Интервал сохранения метрик в секундах
+	FileStorageMetricsPath string // Путь к файлу хранения метрик
+	RestoreMetrics         bool   // Восстанавливать ли метрики при старте
+	DBAddress              string // Адрес базы данных
+	HashKey                string // Ключ для хеширования
+	AuditFile              string // Файл для аудита
+	AuditURL               string // URL для отправки аудита
+	ProfilingEnable        bool   // Включить профилирование
+	ProfileServerAddress   string // Адрес сервера профилирования
+	ProfilingDir           string // Директория для сохранения профилей
 }
 
+// parseServerParameters парсит параметры сервера из переменных окружения и флагов.
 func parseServerParameters() *ServerParameters {
-	godotenv.Load()
-	
+	if err := godotenv.Load(); err != nil {
+		logger.Logger.Info(".env file not loaded: %v", err)
+	}
+
 	addressParameter := addressParameter()
 	storeMetricsIntervalParameter := storeMetricsIntervalParameter()
 	fileStorageMetricsPathParameter := fileStorageMetricsPathParameter()
@@ -34,27 +47,33 @@ func parseServerParameters() *ServerParameters {
 	dbAddressParameter := dbAddressParameter()
 	hashKeyParameter := hashKeyParameter()
 	auditFileParameter := auditFileParameter()
-	AuditURLParameter := AuditURLParameter()
+	AuditURLParameter := auditURLParameter()
+	profilingEnableParameter := profilingEnableParameter()
+	profileServerParameter := profileServerAddressParameter()
+	profileDirParameter := profileDirParameter()
 
 	flag.Parse()
 
 	return &ServerParameters{
-		Address: addressParameter,
-		StoreMetricsInterval: storeMetricsIntervalParameter,
+		Address:                addressParameter,
+		StoreMetricsInterval:   storeMetricsIntervalParameter,
 		FileStorageMetricsPath: fileStorageMetricsPathParameter,
-		RestoreMetrics: restoreMetricsParameter,
-		DBAddress: dbAddressParameter,
-		HashKey: hashKeyParameter,
-		AuditFile: auditFileParameter,
-		AuditURL: AuditURLParameter,
+		RestoreMetrics:         restoreMetricsParameter,
+		DBAddress:              dbAddressParameter,
+		HashKey:                hashKeyParameter,
+		AuditFile:              auditFileParameter,
+		AuditURL:               AuditURLParameter,
+		ProfilingEnable:        profilingEnableParameter,
+		ProfileServerAddress:   profileServerParameter,
+		ProfilingDir:           profileDirParameter,
 	}
 }
 
+// hashKeyParameter возвращает ключ для хеширования из переменных окружения или флагов.
 func hashKeyParameter() string {
-	env, exist := os.LookupEnv("KEY")
+	env, ok := os.LookupEnv("KEY")
 
-	if !exist {
-		// Значения по умолчанию нет, значит выходим
+	if !ok {
 		os.Exit(2)
 	}
 
@@ -63,10 +82,11 @@ func hashKeyParameter() string {
 	return env
 }
 
+// dbAddressParameter возвращает адрес базы данных из переменных окружения или флагов.
 func dbAddressParameter() string {
 	dbAddress := ""
 
-	if env, exist := os.LookupEnv("DATABASE_DSN"); exist {
+	if env, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		dbAddress = env
 	}
 
@@ -75,10 +95,11 @@ func dbAddressParameter() string {
 	return dbAddress
 }
 
+// addressParameter возвращает адрес сервера из переменных окружения или флагов.
 func addressParameter() string {
 	address := address
 
-	if env, exist := os.LookupEnv("ADDRESS"); exist {
+	if env, ok := os.LookupEnv("ADDRESS"); ok {
 		address = env
 	}
 	flag.StringVar(&address, "a", address, "Server address")
@@ -86,10 +107,11 @@ func addressParameter() string {
 	return address
 }
 
+// storeMetricsIntervalParameter возвращает интервал сохранения метрик.
 func storeMetricsIntervalParameter() int {
 	storeMetricsInterval := storeMetricsInterval
 
-	if storeMetricsIntervalEnv, exist := os.LookupEnv("STORE_INTERVAL"); exist {
+	if storeMetricsIntervalEnv, ok := os.LookupEnv("STORE_INTERVAL"); ok {
 		if val, err := strconv.Atoi(storeMetricsIntervalEnv); err == nil {
 			storeMetricsInterval = val
 		}
@@ -99,10 +121,11 @@ func storeMetricsIntervalParameter() int {
 	return storeMetricsInterval
 }
 
+// fileStorageMetricsPathParameter возвращает путь к файлу хранения метрик.
 func fileStorageMetricsPathParameter() string {
 	fileStorageMetricsPath := fileStorageMetricsPath
 
-	if fileStorageMetricsPathEnv, exist := os.LookupEnv("FILE_STORAGE_PATH"); exist {
+	if fileStorageMetricsPathEnv, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		fileStorageMetricsPath = fileStorageMetricsPathEnv
 		return fileStorageMetricsPath
 	}
@@ -112,12 +135,13 @@ func fileStorageMetricsPathParameter() string {
 	return fileStorageMetricsPath
 }
 
+// restoreMetricsParameter возвращает флаг восстановления метрик.
 func restoreMetricsParameter() bool {
 	restoreMetrics := restoreMetrics
 
-	restoreMetricsEnv, exist := os.LookupEnv("RESTORE")
+	restoreMetricsEnv, ok := os.LookupEnv("RESTORE")
 
-	if exist {
+	if ok {
 		if val, err := strconv.ParseBool(restoreMetricsEnv); err == nil {
 			restoreMetrics = val
 		}
@@ -128,10 +152,11 @@ func restoreMetricsParameter() bool {
 	return restoreMetrics
 }
 
+// auditFileParameter возвращает путь к файлу аудита.
 func auditFileParameter() string {
 	auditFile := ""
 
-	if auditFileEnv, exist := os.LookupEnv("AUDIT_FILE"); exist {
+	if auditFileEnv, ok := os.LookupEnv("AUDIT_FILE"); ok {
 		return auditFileEnv
 	}
 
@@ -140,14 +165,58 @@ func auditFileParameter() string {
 	return auditFile
 }
 
-func AuditURLParameter() string {
+// auditURLParameter возвращает URL для отправки аудита.
+func auditURLParameter() string {
 	AuditURL := ""
 
-	if AuditURLEnv, exist := os.LookupEnv("AUDIT_URL"); exist {
+	if AuditURLEnv, ok := os.LookupEnv("AUDIT_URL"); ok {
 		return AuditURLEnv
 	}
 
 	flag.StringVar(&AuditURL, "audit-url", AuditURL, "URL for audit log sending")
 
 	return AuditURL
+}
+
+// profilingEnableParameter возвращает флаг включения профилирования.
+func profilingEnableParameter() bool {
+	profilingEnable := profilingEnable
+
+	profilingEnableEnv, ok := os.LookupEnv("PROFILE")
+
+	if ok {
+		if val, err := strconv.ParseBool(profilingEnableEnv); err == nil {
+			profilingEnable = val
+		}
+	}
+
+	flag.BoolVar(&profilingEnable, "profile", profilingEnable, "Enable profiling")
+
+	return profilingEnable
+}
+
+// profileServerAddressParameter возвращает адрес сервера профилирования.
+func profileServerAddressParameter() string {
+	profileServer := ""
+
+	if profileServerEnv, ok := os.LookupEnv("PROFILE_ADDR"); ok {
+		return profileServerEnv
+	}
+
+	flag.StringVar(&profileServer, "profile-addr", profileServer, "Address for pprof server")
+
+	return profileServer
+}
+
+// profileDirParameter возвращает директорию для сохранения профилей.
+func profileDirParameter() string {
+	profileDir := ""
+
+	if ProfileDirEnv, ok := os.LookupEnv("PROFILE_DIR"); ok {
+		return ProfileDirEnv
+	}
+
+	flag.StringVar(&profileDir, "profile-dir", profileDir, "Address for pprof server")
+
+	return profileDir
 }

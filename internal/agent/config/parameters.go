@@ -8,23 +8,26 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const address string = ":8080"
-const reportInterval int = 2
-const pollInterval int = 10
-const rateLimit int = 1
+const (
+	address        string = ":8080" // адрес сервера по умолчанию
+	reportInterval int    = 2       // интервал отправки метрик по умолчанию (в секундах)
+	pollInterval   int    = 10      // интервал опроса метрик по умолчанию (в секундах)
+	rateLimit      int    = 1       // лимит запросов по умолчанию
+)
 
+// AgentParameters содержит конфигурационные параметры для агента.
 type AgentParameters struct {
-	Address string
+	Address        string
 	ReportInterval int
-	PollInterval int
-	HashKey string
-	RateLimit int
-
+	PollInterval   int
+	HashKey        string
+	RateLimit      int
 }
 
+// parseAgentParameters парсит параметры агента.
 func parseAgentParameters() *AgentParameters {
 	godotenv.Load()
-	
+
 	addressParameter := addressParameter()
 	reportIntervalParameter := reportIntervalParameter()
 	pollIntervalParameter := pollIntervalParameter()
@@ -34,19 +37,18 @@ func parseAgentParameters() *AgentParameters {
 	flag.Parse()
 
 	return &AgentParameters{
-		Address: addressParameter,
+		Address:        addressParameter,
 		ReportInterval: reportIntervalParameter,
-		PollInterval: pollIntervalParameter,
-		HashKey: hashKeyParameter,
-		RateLimit: rateLimitParameter,
+		PollInterval:   pollIntervalParameter,
+		HashKey:        hashKeyParameter,
+		RateLimit:      rateLimitParameter,
 	}
 }
-
 
 func rateLimitParameter() int {
 	rateLimit := rateLimit
 
-	if env, exist := os.LookupEnv("RATE_LIMIT"); exist {
+	if env, ok := os.LookupEnv("RATE_LIMIT"); ok {
 		val, err := strconv.Atoi(env)
 
 		if err != nil {
@@ -64,7 +66,7 @@ func rateLimitParameter() int {
 func hashKeyParameter() string {
 	hashKey := ""
 
-	if env, exist := os.LookupEnv("KEY"); exist {
+	if env, ok := os.LookupEnv("KEY"); ok {
 		hashKey = env
 	}
 
@@ -76,7 +78,7 @@ func hashKeyParameter() string {
 func addressParameter() string {
 	address := address
 
-	if addressEnv, exist := os.LookupEnv("ADDRESS"); exist {
+	if addressEnv, ok := os.LookupEnv("ADDRESS"); ok {
 		address = addressEnv
 		return address
 	}
@@ -89,9 +91,9 @@ func addressParameter() string {
 func reportIntervalParameter() int {
 	reportInterval := reportInterval
 
-	reportIntervalEnv, exist := os.LookupEnv("REPORT_INTERVAL")
+	reportIntervalEnv, ok := os.LookupEnv("REPORT_INTERVAL")
 
-	if !exist {
+	if !ok {
 		flag.IntVar(&reportInterval, "r", reportInterval, "Report interval in seconds")
 		return reportInterval
 	}
@@ -106,9 +108,9 @@ func reportIntervalParameter() int {
 func pollIntervalParameter() int {
 	pollInterval := pollInterval
 
-	pollIntervalEnv, exist := os.LookupEnv("POLL_INTERVAL")
+	pollIntervalEnv, ok := os.LookupEnv("POLL_INTERVAL")
 
-	if !exist {
+	if !ok {
 		flag.IntVar(&pollInterval, "p", pollInterval, "Poll interval in seconds")
 		return pollInterval
 	}
