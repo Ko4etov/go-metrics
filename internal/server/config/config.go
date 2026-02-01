@@ -33,7 +33,10 @@ func New() (*ServerConfig, error) {
 		return nil, fmt.Errorf("logger initialization error: %s", err)
 	}
 
-	serverParameters := parseServerParameters()
+	serverParameters, err := parseServerParameters()
+	if err != nil {
+		return nil, err
+	}
 
 	if serverParameters.DBAddress != "" {
 		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {

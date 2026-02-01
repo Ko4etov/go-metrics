@@ -31,6 +31,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Ko4etov/go-metrics/internal/server"
 	"github.com/Ko4etov/go-metrics/internal/server/config"
 )
@@ -48,9 +51,15 @@ func main() {
 	config, err := config.New()
 
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Создание и запуск сервера
-	server.New(config).Run()
+	err = server.New(config).Run()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
+		os.Exit(1)
+	}
 }

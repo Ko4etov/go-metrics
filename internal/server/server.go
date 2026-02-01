@@ -28,7 +28,7 @@ func New(config *config.ServerConfig) *Server {
 }
 
 // Run запускает HTTP-сервер.
-func (s *Server) Run() {
+func (s *Server) Run() error {
 	if s.config.ProfilingEnable {
 		if err := os.MkdirAll(s.config.ProfilingDir, 0755); err != nil {
 			logger.Logger.Fatalf("failed to create profile directory: %v", err)
@@ -56,8 +56,7 @@ func (s *Server) Run() {
 		if s.config.AuditFile != "" {
 			fileAuditor, err := audit.NewFileAuditor(s.config.AuditFile)
 			if err != nil {
-				fmt.Printf("Failed to create file auditor: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("Failed to create file auditor: %v\n", err)
 			}
 			defer fileAuditor.Close()
 			auditSvc.Subscribe(fileAuditor)
@@ -84,6 +83,8 @@ func (s *Server) Run() {
 
 	err := http.ListenAndServe(s.config.ServerAddress, serverRouter)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("can't start server: %v", err)
 	}
+	
+	return nil
 }

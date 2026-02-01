@@ -3,6 +3,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -35,7 +36,7 @@ type ServerParameters struct {
 }
 
 // parseServerParameters парсит параметры сервера из переменных окружения и флагов.
-func parseServerParameters() *ServerParameters {
+func parseServerParameters() (*ServerParameters, error) {
 	if err := godotenv.Load(); err != nil {
 		logger.Logger.Info(".env file not loaded: %v", err)
 	}
@@ -45,7 +46,10 @@ func parseServerParameters() *ServerParameters {
 	fileStorageMetricsPathParameter := fileStorageMetricsPathParameter()
 	restoreMetricsParameter := restoreMetricsParameter()
 	dbAddressParameter := dbAddressParameter()
-	hashKeyParameter := hashKeyParameter()
+	hashKeyParameter, err := hashKeyParameter()
+	if err != nil {
+		return nil, err
+	}
 	auditFileParameter := auditFileParameter()
 	AuditURLParameter := auditURLParameter()
 	profilingEnableParameter := profilingEnableParameter()
@@ -66,20 +70,20 @@ func parseServerParameters() *ServerParameters {
 		ProfilingEnable:        profilingEnableParameter,
 		ProfileServerAddress:   profileServerParameter,
 		ProfilingDir:           profileDirParameter,
-	}
+	}, nil
 }
 
 // hashKeyParameter возвращает ключ для хеширования из переменных окружения или флагов.
-func hashKeyParameter() string {
+func hashKeyParameter() (string, error) {
 	env, ok := os.LookupEnv("KEY")
 
 	if !ok {
-		os.Exit(2)
+		return "", fmt.Errorf("specify KEY parameter in ENV file")
 	}
 
 	flag.StringVar(&env, "k", env, "Hash key")
 
-	return env
+	return env, nil
 }
 
 // dbAddressParameter возвращает адрес базы данных из переменных окружения или флагов.
@@ -126,8 +130,7 @@ func fileStorageMetricsPathParameter() string {
 	fileStorageMetricsPath := fileStorageMetricsPath
 
 	if fileStorageMetricsPathEnv, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
-		fileStorageMetricsPath = fileStorageMetricsPathEnv
-		return fileStorageMetricsPath
+		return fileStorageMetricsPathEnv
 	}
 
 	flag.StringVar(&fileStorageMetricsPath, "f", fileStorageMetricsPath, "file storage path")
