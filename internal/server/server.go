@@ -56,7 +56,7 @@ func (s *Server) Run() error {
 		if s.config.AuditFile != "" {
 			fileAuditor, err := audit.NewFileAuditor(s.config.AuditFile)
 			if err != nil {
-				return fmt.Errorf("Failed to create file auditor: %v\n", err)
+				return fmt.Errorf("failed to create file auditor: %v", err)
 			}
 			defer fileAuditor.Close()
 			auditSvc.Subscribe(fileAuditor)
