@@ -10,7 +10,7 @@ func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name: "nostdpanic",
 		Doc: `Проверяет использование запрещенных конструкций:
-			- panic() вне recovery
+			- panic()
 			- log.Fatal() и os.Exit() вне функции main пакета main`,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 		Run:      run,

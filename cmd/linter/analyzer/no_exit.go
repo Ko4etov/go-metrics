@@ -10,31 +10,42 @@ import (
 )
 
 func checkExit(pass *analysis.Pass) error {
-	// Если это пакет main и функция main - разрешаем exit
-	if pass.Pkg.Name() == "main" && isInMainFunction(pass) {
-		return nil
-	}
-	
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	
 	nodeFilter := []ast.Node{
+		(*ast.FuncDecl)(nil),
 		(*ast.CallExpr)(nil),
 	}
 	
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
+	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
+		if !push {
+			return true
+		}
 		
-		// Проверяем вызовы os.Exit
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		
+		// Проверяем os.Exit
 		if isOsExitCall(call) {
-			pass.Reportf(call.Pos(), 
-				"использование os.Exit() запрещено вне функции main пакета main")
+			if !isInMainFunctionCall(pass, stack) {
+				pass.Reportf(call.Pos(), 
+					"использование os.Exit() запрещено вне функции main пакета main")
+			}
+			return true
 		}
 		
-		// Проверяем вызовы log.Fatal*
+		// Проверяем log.Fatal*
 		if isLogFatalCall(call) {
-			pass.Reportf(call.Pos(), 
-				"использование log.Fatal*() запрещено вне функции main пакета main")
+			if !isInMainFunctionCall(pass, stack) {
+				pass.Reportf(call.Pos(), 
+					"использование log.Fatal*() запрещено вне функции main пакета main")
+			}
+			return true
 		}
+		
+		return true
 	})
 	
 	return nil
@@ -65,12 +76,10 @@ func isLogFatalCall(call *ast.CallExpr) bool {
 		return false
 	}
 	
-	// Проверяем log.Fatal, log.Fatalf, log.Fatalln
 	if ident.Name == "log" && strings.HasPrefix(sel.Sel.Name, "Fatal") {
 		return true
 	}
 	
-	// Также проверяем logger.Fatal если это наш логгер
 	if ident.Name == "logger" && strings.HasPrefix(sel.Sel.Name, "Fatal") {
 		return true
 	}
@@ -78,8 +87,18 @@ func isLogFatalCall(call *ast.CallExpr) bool {
 	return false
 }
 
-func isInMainFunction(pass *analysis.Pass) bool {
-	// Упрощенная проверка - в реальном анализаторе нужно проверять контекст
-	// Здесь просто разрешаем все в пакете main
-	return true
+func isInMainFunctionCall(pass *analysis.Pass, stack []ast.Node) bool {
+	if pass.Pkg.Name() != "main" {
+		return false
+	}
+	
+	for i := len(stack) - 1; i >= 0; i-- {
+		node := stack[i]
+		
+		if fn, ok := node.(*ast.FuncDecl); ok {
+			return fn.Name.Name == "main"
+		}
+	}
+	
+	return false
 }
