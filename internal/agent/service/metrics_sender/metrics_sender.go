@@ -20,6 +20,7 @@ import (
 )
 
 // MetricsSenderService отправляет метрики на сервер с поддержкой хэширования.
+// generate:reset
 type MetricsSenderService struct {
 	ServerAddress string
 	HashKey       string
