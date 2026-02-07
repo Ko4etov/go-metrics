@@ -26,6 +26,13 @@ package main
 import (
 	"github.com/Ko4etov/go-metrics/internal/agent"
 	"github.com/Ko4etov/go-metrics/internal/agent/config"
+	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 // main является точкой входа для агента сбора метрик.
@@ -34,6 +41,8 @@ import (
 //  2. Создание экземпляра агента с полученной конфигурацией
 //  3. Запуск основного цикла работы агента
 func main() {
+	info := buildinfo.New(buildVersion, buildDate, buildCommit)
+	info.Print()
 	// Инициализация конфигурации агента
 	agentConfig := config.New()
 
