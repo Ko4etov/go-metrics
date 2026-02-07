@@ -292,7 +292,7 @@ func ({{.ReceiverName}} *{{.StructName}}) Reset() {
         IsMap        bool
         IsStruct     bool
         ReceiverName string
-        ZeroValue    string // Добавляем поле для нулевого значения
+        ZeroValue    string
     }
     
     type TemplateStruct struct {
@@ -319,7 +319,6 @@ func ({{.ReceiverName}} *{{.StructName}}) Reset() {
         
         var templateFields []TemplateField
         for _, field := range s.Fields {
-            // Определяем нулевое значение для типа
             zeroValue := getZeroValue(field.Type)
             
             tf := TemplateField{
@@ -378,12 +377,10 @@ func ({{.ReceiverName}} *{{.StructName}}) Reset() {
 }
 
 func getZeroValue(typeStr string) string {
-    // Для указателей
     if strings.HasPrefix(typeStr, "*") {
         return "nil"
     }
     
-    // Для базовых типов
     switch typeStr {
     case "int", "int8", "int16", "int32", "int64",
          "uint", "uint8", "uint16", "uint32", "uint64",
@@ -398,23 +395,22 @@ func getZeroValue(typeStr string) string {
     case "error":
         return "nil"
     default:
-        // Проверяем специальные типы
         if strings.HasPrefix(typeStr, "[]") {
-            return "nil" // слайсы
+            return "nil"
         }
         if strings.HasPrefix(typeStr, "map[") {
-            return "nil" // мапы
+            return "nil"
         }
         if strings.HasPrefix(typeStr, "chan ") {
-            return "nil" // каналы
+            return "nil"
         }
         if strings.HasPrefix(typeStr, "chan") && len(typeStr) > 4 {
-            return "nil" // каналы без пробела: chan bool
+            return "nil"
         }
         if strings.Contains(typeStr, "func(") {
-            return "nil" // функции
+            return "nil"
         }
-        // Для остальных типов (структуры, интерфейсы, типы из других пакетов)
+
         return typeStr + "{}"
     }
 }
