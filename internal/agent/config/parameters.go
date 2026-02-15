@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -52,13 +53,13 @@ func rateLimitParameter() int {
 		val, err := strconv.Atoi(env)
 
 		if err != nil {
-			os.Exit(1)
+			logger.Logger.Warn("can,t convert parameter Rate limit to integer")
+		} else {
+			rateLimit = val
 		}
-
-		rateLimit = val
 	}
 
-	flag.IntVar(&rateLimit, "l", rateLimit, "Hash key")
+	flag.IntVar(&rateLimit, "l", rateLimit, "Rate limit")
 
 	return rateLimit
 }
@@ -118,8 +119,10 @@ func pollIntervalParameter() int {
 	result, err := strconv.ParseInt(pollIntervalEnv, 0, 64)
 
 	if err != nil {
-		os.Exit(1)
+		logger.Logger.Warn("can,t convert parameter Poll interval to integer")
+	} else {
+		pollInterval = int(result)
 	}
 
-	return int(result)
+	return pollInterval
 }

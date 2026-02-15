@@ -20,6 +20,7 @@ import (
 )
 
 // MetricsStorage реализует хранилище метрик.
+// generate:reset
 type MetricsStorage struct {
 	metrics    map[string]models.Metrics // карта метрик
 	mu         *sync.Mutex               // мьютекс для безопасного доступа

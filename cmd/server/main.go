@@ -31,8 +31,18 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Ko4etov/go-metrics/internal/server"
 	"github.com/Ko4etov/go-metrics/internal/server/config"
+	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 // main является точкой входа для сервера сбора метрик.
@@ -44,13 +54,22 @@ import (
 //
 // В случае ошибки при инициализации конфигурации программа завершается с panic.
 func main() {
+	info := buildinfo.New(buildVersion, buildDate, buildCommit)
+	info.Print()
+	
 	// Инициализация конфигурации сервера
 	config, err := config.New()
 
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Создание и запуск сервера
-	server.New(config).Run()
+	err = server.New(config).Run()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
+		os.Exit(1)
+	}
 }

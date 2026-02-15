@@ -15,6 +15,7 @@ import (
 )
 
 // MetricsCollector реализует сбор и хранение метрик.
+// generate:reset
 type MetricsCollector struct {
 	mu          sync.RWMutex
 	metrics     map[string]models.Metrics
