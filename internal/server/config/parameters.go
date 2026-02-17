@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	address                 = ":8080"           // Адрес сервера по умолчанию
-	storeMetricsInterval    = 300               // Интервал сохранения метрик по умолчанию
-	fileStorageMetricsPath  = "metrics.json"    // Путь к файлу метрик по умолчанию
-	restoreMetrics          = true              // Восстанавливать метрики по умолчанию
-	profilingEnable         = false             // Профилирование отключено по умолчанию
+	address                = ":8080"        // Адрес сервера по умолчанию
+	storeMetricsInterval   = 300            // Интервал сохранения метрик по умолчанию
+	fileStorageMetricsPath = "metrics.json" // Путь к файлу метрик по умолчанию
+	restoreMetrics         = true           // Восстанавливать метрики по умолчанию
+	profilingEnable        = false          // Профилирование отключено по умолчанию
 )
 
 // ServerParameters содержит все параметры конфигурации сервера.
@@ -33,6 +33,7 @@ type ServerParameters struct {
 	ProfilingEnable        bool   // Включить профилирование
 	ProfileServerAddress   string // Адрес сервера профилирования
 	ProfilingDir           string // Директория для сохранения профилей
+	CryptoKey              string // Файл с крипто ключом
 }
 
 // parseServerParameters парсит параметры сервера из переменных окружения и флагов.
@@ -55,6 +56,7 @@ func parseServerParameters() (*ServerParameters, error) {
 	profilingEnableParameter := profilingEnableParameter()
 	profileServerParameter := profileServerAddressParameter()
 	profileDirParameter := profileDirParameter()
+	cryptoKeyParameter := cryptoKeyParameter()
 
 	flag.Parse()
 
@@ -70,6 +72,7 @@ func parseServerParameters() (*ServerParameters, error) {
 		ProfilingEnable:        profilingEnableParameter,
 		ProfileServerAddress:   profileServerParameter,
 		ProfilingDir:           profileDirParameter,
+		CryptoKey:              cryptoKeyParameter,
 	}, nil
 }
 
@@ -222,4 +225,16 @@ func profileDirParameter() string {
 	flag.StringVar(&profileDir, "profile-dir", profileDir, "Address for pprof server")
 
 	return profileDir
+}
+
+// cryptoKeyParameter возвращает путь до файла с крипто ключом из переменных окружения или флагов.
+func cryptoKeyParameter() string {
+	cryptoKey := ""
+
+	if env, ok := os.LookupEnv("CRYPTO_KEY"); ok {
+		cryptoKey = env
+	}
+	flag.StringVar(&cryptoKey, "crypto-key", cryptoKey, "Crypto key")
+
+	return cryptoKey
 }

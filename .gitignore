@@ -27,3 +27,4 @@ vendor/
 metrics.json
 metrics_log.json
 .env
+.pem
