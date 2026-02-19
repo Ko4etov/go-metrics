@@ -23,6 +23,7 @@ type ServerConfig struct {
 	ProfilingEnable        bool          // включить профилирование
 	ProfileServerAddress   string        // адрес сервера профилирования
 	ProfilingDir           string        // директория для сохранения профилей
+	CryptoKey              string        // директория для сохранения профилей
 }
 
 // New создает новую конфигурацию сервера.
@@ -67,5 +68,6 @@ func New() (*ServerConfig, error) {
 		ProfilingEnable:        serverParameters.ProfilingEnable,
 		ProfileServerAddress:   serverParameters.ProfileServerAddress,
 		ProfilingDir:           serverParameters.ProfilingDir,
+		CryptoKey:              serverParameters.CryptoKey,
 	}, nil
 }
