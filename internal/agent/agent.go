@@ -14,22 +14,22 @@ import (
 
 // Agent реализует агента для сбора и отправки метрик.
 type Agent struct {
-	pollInterval   time.Duration // интервал сбора метрик
-	reportInterval time.Duration // интервал отправки метрик
-	serverAddress  string        // адрес сервера
-	collector      interfaces.Collector // сборщик метрик
+	pollInterval   time.Duration            // интервал сбора метрик
+	reportInterval time.Duration            // интервал отправки метрик
+	serverAddress  string                   // адрес сервера
+	collector      interfaces.Collector     // сборщик метрик
 	sender         interfaces.MetricsSender // отправитель метрик
-	ctx            context.Context // контекст для управления жизненным циклом
-	cancel         context.CancelFunc // функция отмены контекста
-	wg             sync.WaitGroup // группа ожидания для горутин
-	isRunning      bool // флаг работы агента
-	mu             sync.RWMutex // мьютекс для безопасного доступа
+	ctx            context.Context          // контекст для управления жизненным циклом
+	cancel         context.CancelFunc       // функция отмены контекста
+	wg             sync.WaitGroup           // группа ожидания для горутин
+	isRunning      bool                     // флаг работы агента
+	mu             sync.RWMutex             // мьютекс для безопасного доступа
 }
 
 // New создает нового агента.
 func New(config *config.AgentConfig) *Agent {
 	collector := collector.New()
-	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
+	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit, config.CryptoKey)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Agent{

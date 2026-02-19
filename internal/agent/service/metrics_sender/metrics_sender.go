@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
 )
 
@@ -24,6 +26,7 @@ import (
 type MetricsSenderService struct {
 	ServerAddress string
 	HashKey       string
+	CryptoKey     *rsa.PublicKey
 	Client        *resty.Client
 	BatchSize     int
 	RateLimit     int
@@ -33,7 +36,7 @@ type MetricsSenderService struct {
 }
 
 // New создает новый отправитель метрик.
-func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderService {
+func New(serverAddress string, hashKey string, rateLimit int, cryptoKey string) *MetricsSenderService {
 	client := resty.New().
 		SetTimeout(5 * time.Second).
 		SetRetryCount(2)
@@ -43,11 +46,21 @@ func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderServ
 	sender := &MetricsSenderService{
 		ServerAddress: serverAddress,
 		HashKey:       hashKey,
+		CryptoKey:     nil,
 		Client:        client,
 		BatchSize:     10,
 		RetiebleAgent: retriableAgent,
 		RateLimit:     rateLimit,
 		jobs:          make(chan []models.Metrics, rateLimit),
+	}
+
+	if cryptoKey != "" {
+		publicKey, err := crypto.LoadPublicKey(cryptoKey)
+		if err != nil {
+			fmt.Printf("Warning: failed to load public key from %s: %v\n", cryptoKey, err)
+		} else {
+			sender.CryptoKey = publicKey
+		}
 	}
 
 	sender.startWorkers()
@@ -157,11 +170,32 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 		return fmt.Errorf("compress data failed: %w", err)
 	}
 
+	var finalData []byte
+    var contentType string
+    var contentEncoding string
+
+    if s.CryptoKey != nil {
+        encryptedData, err := crypto.Encrypt(compressedData, s.CryptoKey)
+        if err != nil {
+            return fmt.Errorf("encrypt data failed: %w", err)
+        }
+        finalData = encryptedData
+        contentType = "application/octet-stream"
+        contentEncoding = ""
+    } else {
+        finalData = compressedData
+        contentType = "application/json"
+        contentEncoding = "gzip"
+    }
+
 	req := s.Client.R().
-		SetBody(compressedData).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetHeader("Accept-Encoding", "gzip")
+        SetBody(finalData).
+        SetHeader("Content-Type", contentType)
+
+    if contentEncoding != "" {
+        req.SetHeader("Content-Encoding", contentEncoding)
+    }
+    req.SetHeader("Accept-Encoding", "gzip")
 
 	req = s.addHashHeaders(req, jsonData)
 

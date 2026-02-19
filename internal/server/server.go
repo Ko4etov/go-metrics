@@ -69,10 +69,11 @@ func (s *Server) Run() error {
 	}
 
 	routerConfig := &router.RouteConfig{
-		Storage:  metricsStorage,
-		Pgx:      s.config.ConnectionPool,
-		HashKey:  s.config.HashKey,
-		AuditSvc: auditSvc,
+		Storage:   metricsStorage,
+		Pgx:       s.config.ConnectionPool,
+		HashKey:   s.config.HashKey,
+		AuditSvc:  auditSvc,
+		CryptoKey: s.config.CryptoKey,
 	}
 	serverRouter := router.New(routerConfig)
 
@@ -85,6 +86,6 @@ func (s *Server) Run() error {
 	if err != nil {
 		return fmt.Errorf("can't start server: %v", err)
 	}
-	
+
 	return nil
 }

@@ -10,6 +10,7 @@ type AgentConfig struct {
 	ReportInterval time.Duration // интервал отправки метрик на сервер
 	HashKey        string        // ключ для хеширования (опционально)
 	RateLimit      int           // лимит одновременных запросов
+	CryptoKey      string        // Файл крипто ключа
 }
 
 // New создает новую конфигурацию агента.
@@ -22,5 +23,6 @@ func New() *AgentConfig {
 		ReportInterval: time.Duration(parameters.ReportInterval) * time.Second,
 		HashKey:        parameters.HashKey,
 		RateLimit:      parameters.RateLimit,
+		CryptoKey:      parameters.CryptoKey,
 	}
 }

@@ -23,6 +23,7 @@ type AgentParameters struct {
 	PollInterval   int
 	HashKey        string
 	RateLimit      int
+	CryptoKey      string
 }
 
 // parseAgentParameters парсит параметры агента.
@@ -34,6 +35,7 @@ func parseAgentParameters() *AgentParameters {
 	pollIntervalParameter := pollIntervalParameter()
 	hashKeyParameter := hashKeyParameter()
 	rateLimitParameter := rateLimitParameter()
+	cryptoKeyParameter := cryptoKeyParameter()
 
 	flag.Parse()
 
@@ -43,6 +45,7 @@ func parseAgentParameters() *AgentParameters {
 		PollInterval:   pollIntervalParameter,
 		HashKey:        hashKeyParameter,
 		RateLimit:      rateLimitParameter,
+		CryptoKey:      cryptoKeyParameter,
 	}
 }
 
@@ -125,4 +128,21 @@ func pollIntervalParameter() int {
 	}
 
 	return pollInterval
+}
+
+// cryptoKeyParameter возвращает путь до файла с крипто ключом из переменных окружения или флагов.
+func cryptoKeyParameter() string {
+	cryptoKey := ""
+
+	if env, ok := os.LookupEnv("CRYPTO_KEY_AGENT"); ok {
+		return env;
+	}
+
+	if env, ok := os.LookupEnv("CRYPTO_KEY"); ok {
+		cryptoKey = env
+	}
+	
+	flag.StringVar(&cryptoKey, "crypto-key", cryptoKey, "Crypto key")
+
+	return cryptoKey
 }

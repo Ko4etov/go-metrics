@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewSender(t *testing.T) {
-	sender := New("localhost:8080", "", 3)
+	sender := New("localhost:8080", "", 3, "")
 
 	if sender == nil {
 		t.Fatal("NewSender() returned nil")
@@ -27,7 +27,7 @@ func TestNewSender(t *testing.T) {
 }
 
 func TestBuildURL_GaugeMetric(t *testing.T) {
-	sender := New("localhost:8080", "", 3)
+	sender := New("localhost:8080", "", 3, "")
 
 	value := 42.5
 	metric := models.Metrics{
@@ -45,7 +45,7 @@ func TestBuildURL_GaugeMetric(t *testing.T) {
 }
 
 func TestBuildURL_CounterMetric(t *testing.T) {
-	sender := New("localhost:8080", "", 3)
+	sender := New("localhost:8080", "", 3, "")
 
 	value := int64(100)
 
@@ -64,7 +64,7 @@ func TestBuildURL_CounterMetric(t *testing.T) {
 }
 
 func TestBuildURL_EdgeCases(t *testing.T) {
-	sender := New("localhost:8080", "", 3)
+	sender := New("localhost:8080", "", 3, "")
 
 	zeroValue := 0.0
 	negativeValue := -10.5
@@ -133,7 +133,7 @@ func TestSendMetric_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sender := New(server.URL[7:], "", 3)
+	sender := New(server.URL[7:], "", 3, "")
 
 	value := 42.5
 
@@ -155,7 +155,7 @@ func TestSendMetric_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sender := New(server.URL[7:], "", 3)
+	sender := New(server.URL[7:], "", 3, "")
 
 	value := 42.5
 
@@ -172,7 +172,7 @@ func TestSendMetric_ServerError(t *testing.T) {
 }
 
 func TestSendMetric_NetworkError(t *testing.T) {
-	sender := New("invalid-server:9999", "", 3)
+	sender := New("invalid-server:9999", "", 3, "")
 
 	value := 42.5
 
@@ -196,7 +196,7 @@ func TestSendMetrics_MultipleMetrics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sender := New(server.URL[7:], "", 3)
+	sender := New(server.URL[7:], "", 3, "")
 
 	value1 := 1.0
 	value2 := int64(2)
@@ -236,7 +236,7 @@ func TestSendMetrics_PartialFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sender := New(server.URL[7:], "", 3)
+	sender := New(server.URL[7:], "", 3, "")
 
 	value1 := 1.0
 	value2 := int64(2)
@@ -277,7 +277,7 @@ func TestSendMetricJSON_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	sender := New(server.URL[7:], "", 3)
+	sender := New(server.URL[7:], "", 3, "")
 
 	value := 42.5
 
