@@ -125,7 +125,8 @@ func loadFromConfigFile(parameters *ServerParameters, configFilePath string) err
 		parameters.FileStorageMetricsPath = configFile.StoreFile
 	}
 
-	if parameters.RestoreMetrics == restoreMetrics { //nolint:gosimple
+	defaultRestore := restoreMetrics
+	if parameters.RestoreMetrics == defaultRestore {
 		parameters.RestoreMetrics = configFile.Restore
 	}
 
