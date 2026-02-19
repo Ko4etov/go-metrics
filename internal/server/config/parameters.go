@@ -2,10 +2,12 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -19,6 +21,15 @@ const (
 	restoreMetrics         = true           // Восстанавливать метрики по умолчанию
 	profilingEnable        = false          // Профилирование отключено по умолчанию
 )
+
+type ServerConfigFile struct {
+	Address       string `json:"address"`
+	Restore       bool   `json:"restore"`
+	StoreInterval string `json:"store_interval"`
+	StoreFile     string `json:"store_file"`
+	DatabaseDSN   string `json:"database_dsn"`
+	CryptoKey     string `json:"crypto_key"`
+}
 
 // ServerParameters содержит все параметры конфигурации сервера.
 type ServerParameters struct {
@@ -57,10 +68,11 @@ func parseServerParameters() (*ServerParameters, error) {
 	profileServerParameter := profileServerAddressParameter()
 	profileDirParameter := profileDirParameter()
 	cryptoKeyParameter := cryptoKeyParameter()
+	configFileParameter := configFileParameter()
 
 	flag.Parse()
 
-	return &ServerParameters{
+	parameters := &ServerParameters{
 		Address:                addressParameter,
 		StoreMetricsInterval:   storeMetricsIntervalParameter,
 		FileStorageMetricsPath: fileStorageMetricsPathParameter,
@@ -73,7 +85,59 @@ func parseServerParameters() (*ServerParameters, error) {
 		ProfileServerAddress:   profileServerParameter,
 		ProfilingDir:           profileDirParameter,
 		CryptoKey:              cryptoKeyParameter,
-	}, nil
+	}
+
+	if configFileParameter == "" {
+		return parameters, nil
+	}
+
+	if err := loadFromConfigFile(parameters, configFileParameter); err != nil {
+		logger.Logger.Warn("Failed to load config file: %v", err)
+	}
+
+	return parameters, nil
+}
+
+// loadFromConfigFile загружает параметры из JSON файла
+func loadFromConfigFile(parameters *ServerParameters, configFilePath string) error {
+
+	data, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	var configFile ServerConfigFile
+	if err := json.Unmarshal(data, &configFile); err != nil {
+		return fmt.Errorf("error parsing config file: %w", err)
+	}
+
+	if configFile.Address != "" && parameters.Address == address {
+		parameters.Address = configFile.Address
+	}
+
+	if configFile.StoreInterval != "" && parameters.StoreMetricsInterval == storeMetricsInterval {
+		if interval, err := time.ParseDuration(configFile.StoreInterval); err == nil {
+			parameters.StoreMetricsInterval = int(interval.Seconds())
+		}
+	}
+
+	if configFile.StoreFile != "" && parameters.FileStorageMetricsPath == fileStorageMetricsPath {
+		parameters.FileStorageMetricsPath = configFile.StoreFile
+	}
+
+	if parameters.RestoreMetrics == restoreMetrics {
+		parameters.RestoreMetrics = configFile.Restore
+	}
+
+	if configFile.DatabaseDSN != "" && parameters.DBAddress == "" {
+		parameters.DBAddress = configFile.DatabaseDSN
+	}
+
+	if configFile.CryptoKey != "" && parameters.CryptoKey == "" {
+		parameters.CryptoKey = configFile.CryptoKey
+	}
+
+	return nil
 }
 
 // hashKeyParameter возвращает ключ для хеширования из переменных окружения или флагов.
@@ -237,4 +301,18 @@ func cryptoKeyParameter() string {
 	flag.StringVar(&cryptoKey, "crypto-key", cryptoKey, "Crypto key")
 
 	return cryptoKey
+}
+
+// configFileParameter возвращает путь до файла с конфигурационными параметрами из переменных окружения или флагов.
+func configFileParameter() string {
+	configFile := ""
+
+	if env, ok := os.LookupEnv("CONFIG"); ok {
+		configFile = env
+	}
+
+	flag.StringVar(&configFile, "c", configFile, "Config file")
+	flag.StringVar(&configFile, "config", configFile, "Config file")
+
+	return configFile
 }
