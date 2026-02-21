@@ -24,6 +24,10 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/Ko4etov/go-metrics/internal/agent"
 	"github.com/Ko4etov/go-metrics/internal/agent/config"
 	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
@@ -47,5 +51,14 @@ func main() {
 	agentConfig := config.New()
 
 	// Создание и запуск агента
-	agent.New(agentConfig).Run()
+	agent := agent.New(agentConfig)
+
+	go agent.Run()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	<-quit
+
+	agent.Stop()
 }
