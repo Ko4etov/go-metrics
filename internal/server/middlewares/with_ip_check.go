@@ -17,13 +17,14 @@ type IPConfig struct {
 func WithIPCheck(config *IPConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Если доверенная подсеть не указана - пропускаем без проверки
 			if config.TrustedSubnet == "" {
+				logger.Logger.Debugf("trusted subnet: not set, skipping IP check")
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			// Парсим доверенную подсеть
+			logger.Logger.Debugf("trusted subnet: %s", config.TrustedSubnet)
+
 			_, trustedNet, err := net.ParseCIDR(config.TrustedSubnet)
 			if err != nil {
 				logger.Logger.Errorf("Invalid trusted subnet format: %v", err)
@@ -31,7 +32,6 @@ func WithIPCheck(config *IPConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Получаем IP из заголовка X-Real-IP
 			ipStr := r.Header.Get("X-Real-IP")
 			if ipStr == "" {
 				logger.Logger.Warn("X-Real-IP header is missing")
@@ -39,7 +39,6 @@ func WithIPCheck(config *IPConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Парсим IP адрес
 			ip := net.ParseIP(ipStr)
 			if ip == nil {
 				logger.Logger.Warnf("Invalid IP address format: %s", ipStr)
@@ -47,7 +46,6 @@ func WithIPCheck(config *IPConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Проверяем, входит ли IP в доверенную подсеть
 			if !trustedNet.Contains(ip) {
 				logger.Logger.Warnf("IP %s is not in trusted subnet %s", ipStr, config.TrustedSubnet)
 				http.Error(w, "Forbidden", http.StatusForbidden)
