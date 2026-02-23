@@ -234,7 +234,6 @@ func getLocalIP() (string, error) {
 	}
 
 	for _, addr := range addrs {
-		// Проверяем, что это IP адрес и не loopback
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				return ipnet.IP.String(), nil
@@ -242,7 +241,6 @@ func getLocalIP() (string, error) {
 		}
 	}
 
-	// Если не нашли, пробуем получить через hostname
 	hostname, err := os.Hostname()
 	if err != nil {
 		return "", err
