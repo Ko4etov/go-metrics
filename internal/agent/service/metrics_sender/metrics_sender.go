@@ -20,6 +20,7 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
 )
@@ -60,7 +61,7 @@ func New(serverAddress string, hashKey string, rateLimit int, cryptoKey string) 
 	if cryptoKey != "" {
 		publicKey, err := crypto.LoadPublicKey(cryptoKey)
 		if err != nil {
-			fmt.Printf("Warning: failed to load public key from %s: %v\n", cryptoKey, err)
+			logger.Logger.Infof("Warning: failed to load public key from %s: %v\n", cryptoKey, err)
 		} else {
 			sender.CryptoKey = publicKey
 		}

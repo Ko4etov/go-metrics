@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,13 +9,25 @@ import (
 )
 
 func TestNewAgent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
 	config := &config.AgentConfig{
 		ReportInterval: time.Duration(10) * time.Second,
 		PollInterval:   time.Duration(2) * time.Second,
 		Address:        ":8080",
 		RateLimit:      1,
 	}
-	agent := New(config)
+
+	agent := New(ctx, config)
+
+	go func() {
+		if err := agent.Run(); err != nil {
+			t.Logf("Agent run finished: %v", err)
+		}
+	}()
+
+	time.Sleep(350 * time.Millisecond)
 
 	if agent == nil {
 		t.Fatal("NewAgent() returned nil")
@@ -38,27 +51,36 @@ func TestNewAgent(t *testing.T) {
 }
 
 func TestAgent_PollMetrics(t *testing.T) {
-	config := &config.AgentConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cfg := &config.AgentConfig{
 		PollInterval:   50 * time.Millisecond,
 		ReportInterval: 500 * time.Millisecond,
-		Address:        ":8080",
+		Address:        "localhost:8080",
 		RateLimit:      1,
+		HashKey:        "test-key",
 	}
-	agent := New(config)
+	
+	agent := New(ctx, cfg)
 
-	// Запускаем агент в отдельной горутине
-	go agent.Run()
+	go func() {
+		if err := agent.Run(); err != nil {
+			t.Logf("Agent run finished: %v", err)
+		}
+	}()
 
-	// Даем агенту поработать 300ms (примерно 3 сбора метрик)
 	time.Sleep(350 * time.Millisecond)
 
-	// Останавливаем агент
-	agent.Stop()
+	if !agent.IsRunning() {
+		t.Error("Agent should be running during work period")
+	}
 
-	time.Sleep(50 * time.Millisecond)
+	cancel()
 
-	// Проверяем, что агент остановлен
+	time.Sleep(100 * time.Millisecond)
+
 	if agent.IsRunning() {
-		t.Error("Agent should be stopped after Stop() call")
+		t.Error("Agent should be stopped after context cancel")
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 )
 
@@ -29,11 +28,6 @@ func shouldDecrypt(req *http.Request) bool {
 func WithDecryption(config *CryptoConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			if config.CryptoKey == "" {
-				next.ServeHTTP(res, req)
-				return
-			}
-
 			privateKey, err := crypto.LoadPrivateKey(config.CryptoKey)
 			if err != nil {
 				log.Fatal("Failed to load private key:", err)
@@ -45,7 +39,7 @@ func WithDecryption(config *CryptoConfig) func(http.Handler) http.Handler {
 			}
 
 			originalContentType := req.Header.Get("Content-Type")
-			
+
 			bodyBytes, err := io.ReadAll(req.Body)
 			if err != nil {
 				http.Error(res, "Error reading request body", http.StatusBadRequest)
@@ -60,7 +54,6 @@ func WithDecryption(config *CryptoConfig) func(http.Handler) http.Handler {
 
 			decryptedBytes, err := crypto.Decrypt(bodyBytes, privateKey)
 			if err != nil {
-				logger.Logger.Errorln("Failed to decrypt request body:", err)
 				http.Error(res, "Decryption failed", http.StatusBadRequest)
 				return
 			}
@@ -68,17 +61,12 @@ func WithDecryption(config *CryptoConfig) func(http.Handler) http.Handler {
 			req.Body = io.NopCloser(bytes.NewReader(decryptedBytes))
 
 			req.ContentLength = int64(len(decryptedBytes))
-			
+
 			req.Header.Set("Content-Type", "application/json")
 
 			if originalContentType == "application/octet-stream" {
 				req.Header.Set("Content-Encoding", "gzip")
 			}
-
-			logger.Logger.Infow("Request after decryption",
-				"content-type", req.Header.Get("Content-Type"),
-				"content-encoding", req.Header.Get("Content-Encoding"),
-				"content-length", req.ContentLength)
 
 			next.ServeHTTP(res, req)
 		})

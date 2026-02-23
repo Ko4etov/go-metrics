@@ -29,7 +29,7 @@ type ServerConfig struct {
 
 // New создает новую конфигурацию сервера.
 func New() (*ServerConfig, error) {
-	var poll *pgxpool.Pool
+	var pool *pgxpool.Pool
 
 	if err := logger.Initialize("info"); err != nil {
 		return nil, fmt.Errorf("logger initialization error: %s", err)
@@ -42,18 +42,17 @@ func New() (*ServerConfig, error) {
 
 	if serverParameters.DBAddress != "" {
 		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
-			poll, err = db.NewDBConnection(serverParameters.DBAddress)
+			if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
+				return nil, fmt.Errorf("migration error: %v", err)
+			}
+
+			// 2. Создаем основной пул соединений для приложения
+			pool, err = db.NewDBConnection(serverParameters.DBAddress)
 			if err != nil {
-				return nil, fmt.Errorf("db initialization error: %v", err)
+				return nil, fmt.Errorf("db connection error: %v", err)
 			}
 		} else {
 			return nil, fmt.Errorf("parse db config error: %v", err)
-		}
-	}
-
-	if poll != nil {
-		if err := db.RunMigrations(poll); err != nil {
-			return nil, fmt.Errorf("migration error: %v", err)
 		}
 	}
 
@@ -62,7 +61,7 @@ func New() (*ServerConfig, error) {
 		StoreMetricsInterval:   serverParameters.StoreMetricsInterval,
 		FileStorageMetricsPath: serverParameters.FileStorageMetricsPath,
 		RestoreMetrics:         serverParameters.RestoreMetrics,
-		ConnectionPool:         poll,
+		ConnectionPool:         pool,
 		HashKey:                serverParameters.HashKey,
 		AuditFile:              serverParameters.AuditFile,
 		AuditURL:               serverParameters.AuditURL,

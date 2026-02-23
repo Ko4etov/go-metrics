@@ -31,8 +31,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Ko4etov/go-metrics/internal/server"
 	"github.com/Ko4etov/go-metrics/internal/server/config"
@@ -56,6 +60,10 @@ var (
 func main() {
 	info := buildinfo.New(buildVersion, buildDate, buildCommit)
 	info.Print()
+
+	ctx, stop := signal.NotifyContext(context.Background(), 
+        syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+    defer stop()
 	
 	// Инициализация конфигурации сервера
 	config, err := config.New()
@@ -65,11 +73,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Создание и запуск сервера
-	err = server.New(config).Run()
+    // Создаем сервер с контекстом
+    server := server.New(ctx, config)
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
-		os.Exit(1)
-	}
+    // Запускаем (блокируется до остановки)
+    if err := server.Run(); err != nil {
+        log.Fatal(err)
+    }
 }

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/server/config"
@@ -25,12 +23,18 @@ type Server struct {
 	storage      *storage.MetricsStorage
 	auditSvc     *audit.AuditService
 	fileAuditors []*audit.FileAuditor
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 // New создает новый экземпляр сервера.
-func New(config *config.ServerConfig) *Server {
+func New(ctx context.Context, config *config.ServerConfig) *Server {
+	serverCtx, cancel := context.WithCancel(ctx)
+	
 	return &Server{
 		config: config,
+		ctx:    serverCtx,
+		cancel: cancel,
 	}
 }
 
@@ -53,7 +57,7 @@ func (s *Server) Run() error {
 		ConnectionPool:         s.config.ConnectionPool,
 	}
 
-	metricsStorage := storage.New(storageConfig)
+	s.storage = storage.New(storageConfig)
 
 	if s.config.AuditFile != "" || s.config.AuditURL != "" {
 		s.auditSvc = audit.NewAuditService()
@@ -74,7 +78,7 @@ func (s *Server) Run() error {
 	}
 
 	routerConfig := &router.RouteConfig{
-		Storage:   metricsStorage,
+		Storage:   s.storage,
 		Pgx:       s.config.ConnectionPool,
 		HashKey:   s.config.HashKey,
 		AuditSvc:  s.auditSvc,
@@ -88,53 +92,66 @@ func (s *Server) Run() error {
 	}
 
 	if s.config.StoreMetricsInterval > 0 {
-		metricsStorage.StartPeriodicSave()
+		s.storage.StartPeriodicSave()
 	}
 
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		logger.Logger.Infof("Server starting on %s", s.config.ServerAddress)
 		if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- fmt.Errorf("server error: %w", err)
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-
 	select {
 	case err := <-serverErrors:
 		return err
-	case sig := <-quit:
-		logger.Logger.Infof("Received signal %s, starting graceful shutdown...", sig)
+	case <-s.ctx.Done():
+		logger.Logger.Info("Received shutdown signal")
 	}
 
+	// Graceful shutdown
+	return s.Shutdown()
+}
+
+func (s *Server) Shutdown() error {
+	logger.Logger.Info("Starting graceful shutdown...")
+
+	// Контекст с таймаутом для операций завершения
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Остановка HTTP-сервера
 	logger.Logger.Info("Shutting down HTTP server...")
 	if err := s.httpSrv.Shutdown(ctx); err != nil {
 		logger.Logger.Errorf("HTTP server shutdown error: %v", err)
 	}
 
+	// Остановка периодического сохранения
 	if s.config.StoreMetricsInterval > 0 {
+		logger.Logger.Info("Stopping periodic save...")
 		s.storage.StopPeriodicSave()
 	} else if s.config.FileStorageMetricsPath != "" {
+		logger.Logger.Info("Saving metrics to file...")
 		if err := s.storage.SaveToFile(); err != nil {
 			logger.Logger.Errorf("Failed to save metrics: %v", err)
 		}
 	}
 
+	// Закрытие файловых аудиторов
 	for _, fa := range s.fileAuditors {
+		logger.Logger.Infof("Closing file auditor: %s", fa.Name())
 		if err := fa.Close(); err != nil {
 			logger.Logger.Errorf("Failed to close file auditor: %v", err)
 		}
 	}
 
+	// Закрытие соединения с БД
 	if s.config.ConnectionPool != nil {
+		logger.Logger.Info("Closing database connection...")
 		s.config.ConnectionPool.Close()
 	}
 
+	logger.Logger.Info("Server stopped gracefully")
 	return nil
 }

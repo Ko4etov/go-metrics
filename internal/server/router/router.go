@@ -27,9 +27,6 @@ func New(config *RouteConfig) *chi.Mux {
 	hashConfig := &middlewares.HashConfig{
 		SecretKey: config.HashKey,
 	}
-	cryptoConfig := &middlewares.CryptoConfig{
-		CryptoKey: config.CryptoKey,
-	}
 
 	ipCheckConfig := &middlewares.IPConfig{
 		TrustedSubnet: config.TrustedSubnet,
@@ -38,7 +35,12 @@ func New(config *RouteConfig) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.WithIPCheck(ipCheckConfig))
-	r.Use(middlewares.WithDecryption(cryptoConfig))
+	if config.CryptoKey != "" {
+		cryptoConfig := &middlewares.CryptoConfig{
+			CryptoKey: config.CryptoKey,
+		}
+		r.Use(middlewares.WithDecryption(cryptoConfig))
+	}
 	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithHashing(hashConfig))
 	r.Use(middlewares.WithLogging)
