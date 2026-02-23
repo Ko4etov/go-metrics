@@ -13,11 +13,12 @@ import (
 
 // RouteConfig содержит конфигурацию для маршрутизатора.
 type RouteConfig struct {
-	Storage   *storage.MetricsStorage // хранилище метрик
-	Pgx       *pgxpool.Pool           // пул подключений к базе данных
-	HashKey   string                  // ключ для хеширования
-	AuditSvc  *audit.AuditService     // сервис аудита (опционально)
-	CryptoKey string                  // Crypto key
+	Storage       *storage.MetricsStorage // хранилище метрик
+	Pgx           *pgxpool.Pool           // пул подключений к базе данных
+	HashKey       string                  // ключ для хеширования
+	AuditSvc      *audit.AuditService     // сервис аудита (опционально)
+	CryptoKey     string                  // Crypto key
+	TrustedSubnet string                  // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новый маршрутизатор с настройкой всех middleware и обработчиков.
@@ -30,8 +31,13 @@ func New(config *RouteConfig) *chi.Mux {
 		CryptoKey: config.CryptoKey,
 	}
 
+	ipCheckConfig := &middlewares.IPConfig{
+		TrustedSubnet: config.TrustedSubnet,
+	}
+
 	r := chi.NewRouter()
 
+	r.Use(middlewares.WithIPCheck(ipCheckConfig))
 	r.Use(middlewares.WithDecryption(cryptoConfig))
 	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithHashing(hashConfig))

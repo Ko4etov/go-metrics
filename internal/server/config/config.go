@@ -24,6 +24,7 @@ type ServerConfig struct {
 	ProfileServerAddress   string        // адрес сервера профилирования
 	ProfilingDir           string        // директория для сохранения профилей
 	CryptoKey              string        // директория для сохранения профилей
+	TrustedSubnet          string        // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новую конфигурацию сервера.
@@ -69,5 +70,6 @@ func New() (*ServerConfig, error) {
 		ProfileServerAddress:   serverParameters.ProfileServerAddress,
 		ProfilingDir:           serverParameters.ProfilingDir,
 		CryptoKey:              serverParameters.CryptoKey,
+		TrustedSubnet:          serverParameters.TrustedSubnet,
 	}, nil
 }

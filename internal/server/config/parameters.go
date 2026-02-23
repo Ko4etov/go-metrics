@@ -45,6 +45,7 @@ type ServerParameters struct {
 	ProfileServerAddress   string // Адрес сервера профилирования
 	ProfilingDir           string // Директория для сохранения профилей
 	CryptoKey              string // Файл с крипто ключом
+	TrustedSubnet          string // Доверенная подсеть (CIDR) для проверки IP
 }
 
 // parseServerParameters парсит параметры сервера из переменных окружения и флагов.
@@ -69,6 +70,7 @@ func parseServerParameters() (*ServerParameters, error) {
 	profileDirParameter := profileDirParameter()
 	cryptoKeyParameter := cryptoKeyParameter()
 	configFileParameter := configFileParameter()
+	trustedSubnetParameter := trustedSubnetParameter()
 
 	flag.Parse()
 
@@ -85,6 +87,7 @@ func parseServerParameters() (*ServerParameters, error) {
 		ProfileServerAddress:   profileServerParameter,
 		ProfilingDir:           profileDirParameter,
 		CryptoKey:              cryptoKeyParameter,
+		TrustedSubnet:          trustedSubnetParameter,
 	}
 
 	if configFileParameter == "" {
@@ -316,4 +319,15 @@ func configFileParameter() string {
 	flag.StringVar(&configFile, "config", configFile, "Config file")
 
 	return configFile
+}
+
+func trustedSubnetParameter() string {
+	trustedSubnet := ""
+
+	if env, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
+		trustedSubnet = env
+	}
+	flag.StringVar(&trustedSubnet, "t", trustedSubnet, "Trusted subnet in CIDR format (e.g. 192.168.1.0/24)")
+
+	return trustedSubnet
 }

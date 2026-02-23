@@ -10,6 +10,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -160,6 +163,11 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 
 	url := fmt.Sprintf("http://%s/updates/", s.ServerAddress)
 
+	localIP, err := getLocalIP()
+	if err != nil {
+		log.Printf("Warning: failed to get local IP: %v", err)
+	}
+
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		return fmt.Errorf("marshal metrics failed: %w", err)
@@ -192,6 +200,10 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
         SetBody(finalData).
         SetHeader("Content-Type", contentType)
 
+	if localIP != "" {
+		req.SetHeader("X-Real-IP", localIP)
+	}
+
     if contentEncoding != "" {
         req.SetHeader("Content-Encoding", contentEncoding)
     }
@@ -213,6 +225,39 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	}
 
 	return nil
+}
+
+func getLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		// Проверяем, что это IP адрес и не loopback
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	// Если не нашли, пробуем получить через hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+
+	hostsAddrs, err := net.LookupHost(hostname)
+	if err != nil {
+		return "", err
+	}
+
+	if len(hostsAddrs) > 0 {
+		return hostsAddrs[0], nil
+	}
+
+	return "", fmt.Errorf("could not determine local IP")
 }
 
 // compressData сжимает данные с помощью gzip.
