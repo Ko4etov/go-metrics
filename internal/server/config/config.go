@@ -54,10 +54,10 @@ func New() (*ServerConfig, error) {
 
 			pool, err = db.NewDBConnection(serverParameters.DBAddress)
 			if err != nil {
-				return nil, ErrDbConnection
+				return nil, ErrDBConnection
 			}
 		} else {
-			return nil, ErrParseDbConfig
+			return nil, ErrParseDBConfig
 		}
 	}
 
@@ -81,7 +81,7 @@ func New() (*ServerConfig, error) {
 var (
 	ErrInvalidTrustedSubnetParameter = errors.New("invalid trusted subnet parameter")
 	ErrMigration = errors.New("migration error")
-	ErrParseDbConfig = errors.New("parse db config error")
-	ErrDbConnection = errors.New("db connection error")
+	ErrParseDBConfig = errors.New("parse db config error")
+	ErrDBConnection = errors.New("db connection error")
 	ErrLogerInitialization = errors.New("logger initialization error")
 )
