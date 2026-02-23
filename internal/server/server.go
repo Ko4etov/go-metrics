@@ -120,10 +120,6 @@ func (s *Server) Run() error {
 
 	if s.config.StoreMetricsInterval > 0 {
 		s.storage.StopPeriodicSave()
-	}
-
-	if s.config.StoreMetricsInterval > 0 {
-		s.storage.StopPeriodicSave()
 	} else if s.config.FileStorageMetricsPath != "" {
 		if err := s.storage.SaveToFile(); err != nil {
 			logger.Logger.Errorf("Failed to save metrics: %v", err)
