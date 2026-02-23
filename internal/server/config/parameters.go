@@ -29,6 +29,7 @@ type ServerConfigFile struct {
 	StoreFile     string `json:"store_file"`
 	DatabaseDSN   string `json:"database_dsn"`
 	CryptoKey     string `json:"crypto_key"`
+	TrustedSubnet string `json:"trusted_subnet"`
 }
 
 // ServerParameters содержит все параметры конфигурации сервера.

@@ -2,6 +2,8 @@
 package router
 
 import (
+	"net"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -13,28 +15,30 @@ import (
 
 // RouteConfig содержит конфигурацию для маршрутизатора.
 type RouteConfig struct {
-	Storage       *storage.MetricsStorage // хранилище метрик
-	Pgx           *pgxpool.Pool           // пул подключений к базе данных
-	HashKey       string                  // ключ для хеширования
-	AuditSvc      *audit.AuditService     // сервис аудита (опционально)
-	CryptoKey     string                  // Crypto key
-	TrustedSubnet string                  // доверенная подсеть (CIDR) для проверки IP
+	Storage    *storage.MetricsStorage // хранилище метрик
+	Pgx        *pgxpool.Pool           // пул подключений к базе данных
+	HashKey    string                  // ключ для хеширования
+	AuditSvc   *audit.AuditService     // сервис аудита (опционально)
+	CryptoKey  string                  // Crypto key
+	TrustedNet *net.IPNet              // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новый маршрутизатор с настройкой всех middleware и обработчиков.
 func New(config *RouteConfig) *chi.Mux {
 	metricHandler := handler.New(config.Storage, config.Pgx)
+
 	hashConfig := &middlewares.HashConfig{
 		SecretKey: config.HashKey,
 	}
 
-	ipCheckConfig := &middlewares.IPConfig{
-		TrustedSubnet: config.TrustedSubnet,
-	}
-
 	r := chi.NewRouter()
 
-	r.Use(middlewares.WithIPCheck(ipCheckConfig))
+	if config.TrustedNet != nil {
+		ipCheckConfig := &middlewares.IPConfig{
+			TrustedNet: config.TrustedNet,
+		}
+		r.Use(middlewares.WithIPCheck(ipCheckConfig))
+	}
 	if config.CryptoKey != "" {
 		cryptoConfig := &middlewares.CryptoConfig{
 			CryptoKey: config.CryptoKey,

@@ -30,7 +30,7 @@ type Server struct {
 // New создает новый экземпляр сервера.
 func New(ctx context.Context, config *config.ServerConfig) *Server {
 	serverCtx, cancel := context.WithCancel(ctx)
-	
+
 	return &Server{
 		config: config,
 		ctx:    serverCtx,
@@ -78,11 +78,12 @@ func (s *Server) Run() error {
 	}
 
 	routerConfig := &router.RouteConfig{
-		Storage:   s.storage,
-		Pgx:       s.config.ConnectionPool,
-		HashKey:   s.config.HashKey,
-		AuditSvc:  s.auditSvc,
-		CryptoKey: s.config.CryptoKey,
+		Storage:    s.storage,
+		Pgx:        s.config.ConnectionPool,
+		HashKey:    s.config.HashKey,
+		AuditSvc:   s.auditSvc,
+		CryptoKey:  s.config.CryptoKey,
+		TrustedNet: s.config.TrustedNet,
 	}
 	serverRouter := router.New(routerConfig)
 

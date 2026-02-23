@@ -2,7 +2,8 @@
 package config
 
 import (
-	"fmt"
+	"errors"
+	"net"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -24,7 +25,7 @@ type ServerConfig struct {
 	ProfileServerAddress   string        // адрес сервера профилирования
 	ProfilingDir           string        // директория для сохранения профилей
 	CryptoKey              string        // директория для сохранения профилей
-	TrustedSubnet          string        // доверенная подсеть (CIDR) для проверки IP
+	TrustedNet             *net.IPNet    // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новую конфигурацию сервера.
@@ -32,7 +33,7 @@ func New() (*ServerConfig, error) {
 	var pool *pgxpool.Pool
 
 	if err := logger.Initialize("info"); err != nil {
-		return nil, fmt.Errorf("logger initialization error: %s", err)
+		return nil, ErrLogerInitialization
 	}
 
 	serverParameters, err := parseServerParameters()
@@ -40,19 +41,23 @@ func New() (*ServerConfig, error) {
 		return nil, err
 	}
 
+	_, trustedNet, parseCidrErr := net.ParseCIDR(serverParameters.TrustedSubnet)
+	if parseCidrErr != nil {
+		return nil, ErrInvalidTrustedSubnetParameter
+	}
+
 	if serverParameters.DBAddress != "" {
 		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
 			if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
-				return nil, fmt.Errorf("migration error: %v", err)
+				return nil, ErrMigration
 			}
 
-			// 2. Создаем основной пул соединений для приложения
 			pool, err = db.NewDBConnection(serverParameters.DBAddress)
 			if err != nil {
-				return nil, fmt.Errorf("db connection error: %v", err)
+				return nil, ErrDbConnection
 			}
 		} else {
-			return nil, fmt.Errorf("parse db config error: %v", err)
+			return nil, ErrParseDbConfig
 		}
 	}
 
@@ -69,6 +74,14 @@ func New() (*ServerConfig, error) {
 		ProfileServerAddress:   serverParameters.ProfileServerAddress,
 		ProfilingDir:           serverParameters.ProfilingDir,
 		CryptoKey:              serverParameters.CryptoKey,
-		TrustedSubnet:          serverParameters.TrustedSubnet,
+		TrustedNet:             trustedNet,
 	}, nil
 }
+
+var (
+	ErrInvalidTrustedSubnetParameter = errors.New("invalid trusted subnet parameter")
+	ErrMigration = errors.New("migration error")
+	ErrParseDbConfig = errors.New("parse db config error")
+	ErrDbConnection = errors.New("db connection error")
+	ErrLogerInitialization = errors.New("logger initialization error")
+)
