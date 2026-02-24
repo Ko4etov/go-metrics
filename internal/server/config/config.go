@@ -2,7 +2,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"net"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -23,14 +25,16 @@ type ServerConfig struct {
 	ProfilingEnable        bool          // включить профилирование
 	ProfileServerAddress   string        // адрес сервера профилирования
 	ProfilingDir           string        // директория для сохранения профилей
+	CryptoKey              string        // директория для сохранения профилей
+	TrustedNet             *net.IPNet    // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новую конфигурацию сервера.
 func New() (*ServerConfig, error) {
-	var poll *pgxpool.Pool
+	var pool *pgxpool.Pool
 
 	if err := logger.Initialize("info"); err != nil {
-		return nil, fmt.Errorf("logger initialization error: %s", err)
+		return nil, fmt.Errorf("%w: %w", ErrLogerInitialization, err)
 	}
 
 	serverParameters, err := parseServerParameters()
@@ -38,20 +42,23 @@ func New() (*ServerConfig, error) {
 		return nil, err
 	}
 
-	if serverParameters.DBAddress != "" {
-		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
-			poll, err = db.NewDBConnection(serverParameters.DBAddress)
-			if err != nil {
-				return nil, fmt.Errorf("db initialization error: %v", err)
-			}
-		} else {
-			return nil, fmt.Errorf("parse db config error: %v", err)
-		}
+	_, trustedNet, parseCidrErr := net.ParseCIDR(serverParameters.TrustedSubnet)
+	if parseCidrErr != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidTrustedSubnetParameter, err)
 	}
 
-	if poll != nil {
-		if err := db.RunMigrations(poll); err != nil {
-			return nil, fmt.Errorf("migration error: %v", err)
+	if serverParameters.DBAddress != "" {
+		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrParseDBConfig, err)
+		}
+
+		if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrMigration, err)
+		}
+
+		pool, err = db.NewDBConnection(serverParameters.DBAddress)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrDBConnection, err)
 		}
 	}
 
@@ -60,12 +67,22 @@ func New() (*ServerConfig, error) {
 		StoreMetricsInterval:   serverParameters.StoreMetricsInterval,
 		FileStorageMetricsPath: serverParameters.FileStorageMetricsPath,
 		RestoreMetrics:         serverParameters.RestoreMetrics,
-		ConnectionPool:         poll,
+		ConnectionPool:         pool,
 		HashKey:                serverParameters.HashKey,
 		AuditFile:              serverParameters.AuditFile,
 		AuditURL:               serverParameters.AuditURL,
 		ProfilingEnable:        serverParameters.ProfilingEnable,
 		ProfileServerAddress:   serverParameters.ProfileServerAddress,
 		ProfilingDir:           serverParameters.ProfilingDir,
+		CryptoKey:              serverParameters.CryptoKey,
+		TrustedNet:             trustedNet,
 	}, nil
 }
+
+var (
+	ErrInvalidTrustedSubnetParameter = errors.New("invalid trusted subnet parameter")
+	ErrMigration                     = errors.New("migration error")
+	ErrParseDBConfig                 = errors.New("parse db config error")
+	ErrDBConnection                  = errors.New("db connection error")
+	ErrLogerInitialization           = errors.New("logger initialization error")
+)

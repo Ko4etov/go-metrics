@@ -3,6 +3,7 @@ package agent
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -14,23 +15,23 @@ import (
 
 // Agent реализует агента для сбора и отправки метрик.
 type Agent struct {
-	pollInterval   time.Duration // интервал сбора метрик
-	reportInterval time.Duration // интервал отправки метрик
-	serverAddress  string        // адрес сервера
-	collector      interfaces.Collector // сборщик метрик
+	pollInterval   time.Duration            // интервал сбора метрик
+	reportInterval time.Duration            // интервал отправки метрик
+	serverAddress  string                   // адрес сервера
+	collector      interfaces.Collector     // сборщик метрик
 	sender         interfaces.MetricsSender // отправитель метрик
-	ctx            context.Context // контекст для управления жизненным циклом
-	cancel         context.CancelFunc // функция отмены контекста
-	wg             sync.WaitGroup // группа ожидания для горутин
-	isRunning      bool // флаг работы агента
-	mu             sync.RWMutex // мьютекс для безопасного доступа
+	ctx            context.Context          // контекст для управления жизненным циклом
+	cancel         context.CancelFunc       // функция отмены контекста
+	wg             sync.WaitGroup           // группа ожидания для горутин
+	isRunning      bool                     // флаг работы агента
+	mu             sync.RWMutex             // мьютекс для безопасного доступа
 }
 
 // New создает нового агента.
-func New(config *config.AgentConfig) *Agent {
+func New(ctx context.Context, config *config.AgentConfig) *Agent {
 	collector := collector.New()
-	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit)
-	ctx, cancel := context.WithCancel(context.Background())
+	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit, config.CryptoKey)
+	ctx, cancel := context.WithCancel(ctx)
 
 	return &Agent{
 		pollInterval:   config.PollInterval,
@@ -45,11 +46,11 @@ func New(config *config.AgentConfig) *Agent {
 }
 
 // Run запускает агента.
-func (a *Agent) Run() {
+func (a *Agent) Run() error {
 	a.mu.Lock()
 	if a.isRunning {
 		a.mu.Unlock()
-		return
+		return nil
 	}
 	a.isRunning = true
 	a.mu.Unlock()
@@ -63,6 +64,7 @@ func (a *Agent) Run() {
 	a.mu.Lock()
 	a.isRunning = false
 	a.mu.Unlock()
+	return nil
 }
 
 // runPolling запускает горутину для периодического сбора метрик.
@@ -100,21 +102,29 @@ func (a *Agent) runReporting() {
 }
 
 // Stop останавливает агента.
-func (a *Agent) Stop() {
-	a.mu.RLock()
-	if !a.isRunning {
-		a.mu.RUnlock()
-		return
+func (a *Agent) Stop(ctx context.Context) error {
+	if a.cancel != nil {
+		a.cancel()
 	}
-	a.mu.RUnlock()
-
-	a.cancel()
 
 	if sender, ok := a.sender.(interface{ Stop() }); ok {
 		sender.Stop()
 	}
 
-	a.wg.Wait()
+	// Ждем завершения с таймаутом
+	done := make(chan struct{})
+	go func() {
+		a.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Println("All goroutines finished")
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // IsRunning возвращает состояние агента.

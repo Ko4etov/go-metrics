@@ -24,6 +24,12 @@
 package main
 
 import (
+	"context"
+	"log"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/Ko4etov/go-metrics/internal/agent"
 	"github.com/Ko4etov/go-metrics/internal/agent/config"
 	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
@@ -43,9 +49,33 @@ var (
 func main() {
 	info := buildinfo.New(buildVersion, buildDate, buildCommit)
 	info.Print()
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGTERM,
+		syscall.SIGINT,
+		syscall.SIGQUIT,
+	)
+	defer stop()
+
 	// Инициализация конфигурации агента
 	agentConfig := config.New()
 
 	// Создание и запуск агента
-	agent.New(agentConfig).Run()
+	agent := agent.New(ctx, agentConfig)
+
+	if err := agent.Run(); err != nil {
+		log.Printf("Agent error: %v", err)
+		return
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	// Останавливаем агента
+	if err := agent.Stop(shutdownCtx); err != nil {
+		log.Printf("Error during shutdown: %v", err)
+	}
+
+	log.Println("Agent stopped gracefully")
 }

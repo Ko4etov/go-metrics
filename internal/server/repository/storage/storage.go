@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
 )
 
 // MetricsStorage реализует хранилище метрик.
@@ -145,9 +146,9 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 
 	if ms.config.FileStorageMetricsPath != "" {
 		if err := ms.SaveToFile(); err != nil {
-			fmt.Printf("Error saving metrics on shutdown: %v\n", err)
+			logger.Logger.Infof("Error saving metrics on shutdown: %v\n", err)
 		} else {
-			fmt.Printf("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
+			logger.Logger.Infof("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
 		}
 	}
 }

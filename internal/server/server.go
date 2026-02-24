@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,13 +18,23 @@ import (
 
 // Server представляет HTTP-сервер для системы метрик.
 type Server struct {
-	config *config.ServerConfig // конфигурация сервера
+	config       *config.ServerConfig // конфигурация сервера
+	httpSrv      *http.Server         // HTTP-сервер
+	storage      *storage.MetricsStorage
+	auditSvc     *audit.AuditService
+	fileAuditors []*audit.FileAuditor
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 // New создает новый экземпляр сервера.
-func New(config *config.ServerConfig) *Server {
+func New(ctx context.Context, config *config.ServerConfig) *Server {
+	serverCtx, cancel := context.WithCancel(ctx)
+
 	return &Server{
 		config: config,
+		ctx:    serverCtx,
+		cancel: cancel,
 	}
 }
 
@@ -46,45 +57,102 @@ func (s *Server) Run() error {
 		ConnectionPool:         s.config.ConnectionPool,
 	}
 
-	metricsStorage := storage.New(storageConfig)
-
-	var auditSvc *audit.AuditService
+	s.storage = storage.New(storageConfig)
 
 	if s.config.AuditFile != "" || s.config.AuditURL != "" {
-		auditSvc = audit.NewAuditService()
+		s.auditSvc = audit.NewAuditService()
 
 		if s.config.AuditFile != "" {
 			fileAuditor, err := audit.NewFileAuditor(s.config.AuditFile)
 			if err != nil {
 				return fmt.Errorf("failed to create file auditor: %v", err)
 			}
-			defer fileAuditor.Close()
-			auditSvc.Subscribe(fileAuditor)
+			s.auditSvc.Subscribe(fileAuditor)
+			s.fileAuditors = append(s.fileAuditors, fileAuditor)
 		}
 
 		if s.config.AuditURL != "" {
 			httpAuditor := audit.NewHTTPAuditor(s.config.AuditURL)
-			auditSvc.Subscribe(httpAuditor)
+			s.auditSvc.Subscribe(httpAuditor)
 		}
 	}
 
 	routerConfig := &router.RouteConfig{
-		Storage:  metricsStorage,
-		Pgx:      s.config.ConnectionPool,
-		HashKey:  s.config.HashKey,
-		AuditSvc: auditSvc,
+		Storage:    s.storage,
+		Pgx:        s.config.ConnectionPool,
+		HashKey:    s.config.HashKey,
+		AuditSvc:   s.auditSvc,
+		CryptoKey:  s.config.CryptoKey,
+		TrustedNet: s.config.TrustedNet,
 	}
 	serverRouter := router.New(routerConfig)
 
-	if s.config.StoreMetricsInterval > 0 {
-		metricsStorage.StartPeriodicSave()
-		defer metricsStorage.StopPeriodicSave()
+	s.httpSrv = &http.Server{
+		Addr:    s.config.ServerAddress,
+		Handler: serverRouter,
 	}
 
-	err := http.ListenAndServe(s.config.ServerAddress, serverRouter)
-	if err != nil {
-		return fmt.Errorf("can't start server: %v", err)
+	if s.config.StoreMetricsInterval > 0 {
+		s.storage.StartPeriodicSave()
 	}
-	
+
+	serverErrors := make(chan error, 1)
+
+	go func() {
+		if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrors <- fmt.Errorf("server error: %w", err)
+		}
+	}()
+
+	select {
+	case err := <-serverErrors:
+		return err
+	case <-s.ctx.Done():
+		logger.Logger.Info("Received shutdown signal")
+	}
+
+	// Graceful shutdown
+	return s.Shutdown()
+}
+
+func (s *Server) Shutdown() error {
+	logger.Logger.Info("Starting graceful shutdown...")
+
+	// Контекст с таймаутом для операций завершения
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Остановка HTTP-сервера
+	logger.Logger.Info("Shutting down HTTP server...")
+	if err := s.httpSrv.Shutdown(ctx); err != nil {
+		logger.Logger.Errorf("HTTP server shutdown error: %v", err)
+	}
+
+	// Остановка периодического сохранения
+	if s.config.StoreMetricsInterval > 0 {
+		logger.Logger.Info("Stopping periodic save...")
+		s.storage.StopPeriodicSave()
+	} else if s.config.FileStorageMetricsPath != "" {
+		logger.Logger.Info("Saving metrics to file...")
+		if err := s.storage.SaveToFile(); err != nil {
+			logger.Logger.Errorf("Failed to save metrics: %v", err)
+		}
+	}
+
+	// Закрытие файловых аудиторов
+	for _, fa := range s.fileAuditors {
+		logger.Logger.Infof("Closing file auditor: %s", fa.Name())
+		if err := fa.Close(); err != nil {
+			logger.Logger.Errorf("Failed to close file auditor: %v", err)
+		}
+	}
+
+	// Закрытие соединения с БД
+	if s.config.ConnectionPool != nil {
+		logger.Logger.Info("Closing database connection...")
+		s.config.ConnectionPool.Close()
+	}
+
+	logger.Logger.Info("Server stopped gracefully")
 	return nil
 }
