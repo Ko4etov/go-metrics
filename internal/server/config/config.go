@@ -3,6 +3,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,7 +34,7 @@ func New() (*ServerConfig, error) {
 	var pool *pgxpool.Pool
 
 	if err := logger.Initialize("info"); err != nil {
-		return nil, ErrLogerInitialization
+		return nil, fmt.Errorf("%w: %w", ErrLogerInitialization, err)
 	}
 
 	serverParameters, err := parseServerParameters()
@@ -43,21 +44,23 @@ func New() (*ServerConfig, error) {
 
 	_, trustedNet, parseCidrErr := net.ParseCIDR(serverParameters.TrustedSubnet)
 	if parseCidrErr != nil {
-		return nil, ErrInvalidTrustedSubnetParameter
+		return nil, fmt.Errorf("%w: %w", ErrInvalidTrustedSubnetParameter, err)
 	}
 
 	if serverParameters.DBAddress != "" {
-		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err == nil {
-			if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
-				return nil, ErrMigration
-			}
+		if _, err := pgxpool.ParseConfig(serverParameters.DBAddress); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrParseDBConfig, err)
+		}
 
-			pool, err = db.NewDBConnection(serverParameters.DBAddress)
-			if err != nil {
-				return nil, ErrDBConnection
-			}
-		} else {
-			return nil, ErrParseDBConfig
+		// Выполняем миграции
+		if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrMigration, err)
+		}
+
+		// Создаем подключение
+		pool, err = db.NewDBConnection(serverParameters.DBAddress)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrDBConnection, err)
 		}
 	}
 
@@ -80,8 +83,8 @@ func New() (*ServerConfig, error) {
 
 var (
 	ErrInvalidTrustedSubnetParameter = errors.New("invalid trusted subnet parameter")
-	ErrMigration = errors.New("migration error")
-	ErrParseDBConfig = errors.New("parse db config error")
-	ErrDBConnection = errors.New("db connection error")
-	ErrLogerInitialization = errors.New("logger initialization error")
+	ErrMigration                     = errors.New("migration error")
+	ErrParseDBConfig                 = errors.New("parse db config error")
+	ErrDBConnection                  = errors.New("db connection error")
+	ErrLogerInitialization           = errors.New("logger initialization error")
 )
