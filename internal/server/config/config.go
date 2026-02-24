@@ -52,12 +52,10 @@ func New() (*ServerConfig, error) {
 			return nil, fmt.Errorf("%w: %w", ErrParseDBConfig, err)
 		}
 
-		// Выполняем миграции
 		if err := db.RunMigrations(serverParameters.DBAddress); err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrMigration, err)
 		}
 
-		// Создаем подключение
 		pool, err = db.NewDBConnection(serverParameters.DBAddress)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrDBConnection, err)
