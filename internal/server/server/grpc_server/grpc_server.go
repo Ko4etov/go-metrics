@@ -89,7 +89,7 @@ func (s *GRPCServer) Stop(ctx context.Context) error {
         s.grpcServer.GracefulStop()
         
         if err := s.BaseServer.Stop(); err != nil {
-			errorChan <- fmt.Errorf("Base server shutdown error: %w", err)
+			errorChan <- fmt.Errorf("base server shutdown error: %w", err)
 			return
         }
 		errorChan <- nil
@@ -119,21 +119,16 @@ func IPInterceptor(trustedSubnet *net.IPNet) grpc.UnaryServerInterceptor {
 			}
 		}
 
-		logger.Logger.Infof("🔍 Client IP: %s", clientIP)
-
 		if clientIP == "" {
-			logger.Logger.Warn("Could not determine client IP")
 			return nil, status.Error(codes.PermissionDenied, "IP address required")
 		}
 
 		ip := net.ParseIP(clientIP)
 		if ip == nil {
-			logger.Logger.Warnf("Invalid IP format: %s", clientIP)
 			return nil, status.Error(codes.PermissionDenied, "invalid IP format")
 		}
 
 		if !trustedSubnet.Contains(ip) {
-			logger.Logger.Warnf("IP %s not in trusted subnet %s", clientIP, trustedSubnet)
 			return nil, status.Error(codes.PermissionDenied, "IP not allowed")
 		}
 
