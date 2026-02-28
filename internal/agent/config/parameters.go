@@ -24,6 +24,8 @@ type AgentParameters struct {
 	HashKey        string
 	RateLimit      int
 	CryptoKey      string
+	UseGRPC        bool
+	GRPCAddress    string
 }
 
 // parseAgentParameters парсит параметры агента.
@@ -36,6 +38,8 @@ func parseAgentParameters() *AgentParameters {
 	hashKeyParameter := hashKeyParameter()
 	rateLimitParameter := rateLimitParameter()
 	cryptoKeyParameter := cryptoKeyParameter()
+	useGRPCParameter := useGRPCParameter()
+	grpcAddressParameter := grpcAddressParameter()
 
 	flag.Parse()
 
@@ -46,6 +50,8 @@ func parseAgentParameters() *AgentParameters {
 		HashKey:        hashKeyParameter,
 		RateLimit:      rateLimitParameter,
 		CryptoKey:      cryptoKeyParameter,
+		UseGRPC:        useGRPCParameter,
+		GRPCAddress:    grpcAddressParameter,
 	}
 }
 
@@ -130,19 +136,42 @@ func pollIntervalParameter() int {
 	return pollInterval
 }
 
-// cryptoKeyParameter возвращает путь до файла с крипто ключом из переменных окружения или флагов.
 func cryptoKeyParameter() string {
 	cryptoKey := ""
 
 	if env, ok := os.LookupEnv("CRYPTO_KEY_AGENT"); ok {
-		return env;
+		return env
 	}
 
 	if env, ok := os.LookupEnv("CRYPTO_KEY"); ok {
 		cryptoKey = env
 	}
-	
+
 	flag.StringVar(&cryptoKey, "crypto-key", cryptoKey, "Crypto key")
 
 	return cryptoKey
+}
+
+func useGRPCParameter() bool {
+	useGRPC := false
+
+	if env, ok := os.LookupEnv("USE_GRPC"); ok {
+		useGRPC, _ = strconv.ParseBool(env)
+	}
+
+	flag.BoolVar(&useGRPC, "grpc", useGRPC, "Use gRPC protocol")
+
+	return useGRPC
+}
+
+func grpcAddressParameter() string {
+	grpcAddr := ""
+
+	if env, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
+		grpcAddr = env
+	}
+
+	flag.StringVar(&grpcAddr, "grpc-addr", grpcAddr, "gRPC server address")
+
+	return grpcAddr
 }

@@ -19,7 +19,10 @@ func TestNewAgent(t *testing.T) {
 		RateLimit:      1,
 	}
 
-	agent := New(ctx, config)
+	agent, err := New(ctx, config)
+	if (err != nil) {
+		t.Error("can not create agent")
+	}
 
 	go func() {
 		if err := agent.Run(); err != nil {
@@ -62,7 +65,10 @@ func TestAgent_PollMetrics(t *testing.T) {
 		HashKey:        "test-key",
 	}
 	
-	agent := New(ctx, cfg)
+	agent, err := New(ctx, cfg)
+	if (err != nil) {
+		t.Error("can not create agent")
+	}
 
 	go func() {
 		if err := agent.Run(); err != nil {

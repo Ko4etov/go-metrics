@@ -58,24 +58,27 @@ func main() {
 	)
 	defer stop()
 
-	// Инициализация конфигурации агента
-	agentConfig := config.New()
+	agentConfig, err := config.New()
+	if (err != nil) {
+		log.Fatalf("Config generation error: %v", err)
+		return
+	}
 
-	// Создание и запуск агента
-	agent := agent.New(ctx, agentConfig)
+	agent, err := agent.New(ctx, agentConfig)
+	if (err != nil) {
+		log.Fatalf("Agent error: %v", err)
+		return
+	}
 
 	if err := agent.Run(); err != nil {
-		log.Printf("Agent error: %v", err)
+		log.Fatalf("Agent error: %v", err)
 		return
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
-	// Останавливаем агента
 	if err := agent.Stop(shutdownCtx); err != nil {
 		log.Printf("Error during shutdown: %v", err)
 	}
-
-	log.Println("Agent stopped gracefully")
 }

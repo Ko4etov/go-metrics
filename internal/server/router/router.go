@@ -2,6 +2,7 @@
 package router
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +12,7 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
+	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 )
 
 // RouteConfig содержит конфигурацию для маршрутизатора.
@@ -24,7 +26,7 @@ type RouteConfig struct {
 }
 
 // New создает новый маршрутизатор с настройкой всех middleware и обработчиков.
-func New(config *RouteConfig) *chi.Mux {
+func New(config *RouteConfig) (*chi.Mux, error) {
 	metricHandler := handler.New(config.Storage, config.Pgx)
 
 	hashConfig := &middlewares.HashConfig{
@@ -40,10 +42,11 @@ func New(config *RouteConfig) *chi.Mux {
 		r.Use(middlewares.WithIPCheck(ipCheckConfig))
 	}
 	if config.CryptoKey != "" {
-		cryptoConfig := &middlewares.CryptoConfig{
-			CryptoKey: config.CryptoKey,
+		privateKey, err := crypto.LoadPrivateKey(config.CryptoKey)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load private key: %w", err)
 		}
-		r.Use(middlewares.WithDecryption(cryptoConfig))
+		r.Use(middlewares.WithDecryption(privateKey))
 	}
 	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithHashing(hashConfig))
@@ -62,5 +65,5 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
-	return r
+	return r, nil
 }

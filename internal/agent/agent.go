@@ -3,6 +3,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/agent/config"
 	"github.com/Ko4etov/go-metrics/internal/agent/interfaces"
 	"github.com/Ko4etov/go-metrics/internal/agent/repository/collector"
-	metricssender "github.com/Ko4etov/go-metrics/internal/agent/service/metrics_sender"
+	metricssenderfactory "github.com/Ko4etov/go-metrics/internal/agent/service/metric_sender_factory"
 )
 
 // Agent реализует агента для сбора и отправки метрик.
@@ -28,9 +29,12 @@ type Agent struct {
 }
 
 // New создает нового агента.
-func New(ctx context.Context, config *config.AgentConfig) *Agent {
+func New(ctx context.Context, config *config.AgentConfig) (*Agent, error) {
 	collector := collector.New()
-	sender := metricssender.New(config.Address, config.HashKey, config.RateLimit, config.CryptoKey)
+	sender, err := metricssenderfactory.NewSender(config)
+	if (err != nil) {
+		return nil, fmt.Errorf("Can not create metric sender: %w", err)
+	}
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Agent{
@@ -42,7 +46,7 @@ func New(ctx context.Context, config *config.AgentConfig) *Agent {
 		ctx:            ctx,
 		cancel:         cancel,
 		isRunning:      false,
-	}
+	}, nil
 }
 
 // Run запускает агента.

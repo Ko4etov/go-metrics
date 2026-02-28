@@ -1,4 +1,4 @@
-package server_test
+package httpserver_test
 
 import (
 	"bytes"
@@ -33,7 +33,10 @@ func Example_updateMetricText() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -71,7 +74,10 @@ func Example_updateCounterText() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -109,7 +115,10 @@ func Example_updateMetricJSON() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -168,7 +177,10 @@ func Example_getMetricText() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -220,7 +232,10 @@ func Example_getMetricJSON() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -271,7 +286,10 @@ func Example_updateBatchMetrics() {
 		Storage: store,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -329,7 +347,10 @@ func Example_dBPing_noDB() {
 		Pgx:     nil, // Нет подключения к БД
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -381,7 +402,10 @@ func Example_getAllMetrics() {
 		Pgx:     mockPool,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -418,7 +442,10 @@ func Example_counterAccumulation() {
 		Pgx:     mockPool,
 		HashKey: "",
 	}
-	r := router.New(routerConfig)
+	r, err := router.New(routerConfig)
+	if (err != nil) {
+		fmt.Printf("can not create router: %v\n", err)
+	}
 
 	server := httptest.NewServer(r)
 	defer server.Close()

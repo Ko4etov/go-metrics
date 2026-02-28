@@ -27,6 +27,8 @@ type ServerConfig struct {
 	ProfilingDir           string        // директория для сохранения профилей
 	CryptoKey              string        // директория для сохранения профилей
 	TrustedNet             *net.IPNet    // доверенная подсеть (CIDR) для проверки IP
+	UseGRPC                bool
+	GRPCAddress            string
 }
 
 // New создает новую конфигурацию сервера.
@@ -40,6 +42,12 @@ func New() (*ServerConfig, error) {
 	serverParameters, err := parseServerParameters()
 	if err != nil {
 		return nil, err
+	}
+
+	if serverParameters.UseGRPC {
+		if serverParameters.GRPCAddress == "" {
+			return nil, ErrGRPCAddressMissed
+		}
 	}
 
 	_, trustedNet, parseCidrErr := net.ParseCIDR(serverParameters.TrustedSubnet)
@@ -76,6 +84,8 @@ func New() (*ServerConfig, error) {
 		ProfilingDir:           serverParameters.ProfilingDir,
 		CryptoKey:              serverParameters.CryptoKey,
 		TrustedNet:             trustedNet,
+		UseGRPC:                serverParameters.UseGRPC,
+		GRPCAddress:            serverParameters.GRPCAddress,
 	}, nil
 }
 
@@ -85,4 +95,5 @@ var (
 	ErrParseDBConfig                 = errors.New("parse db config error")
 	ErrDBConnection                  = errors.New("db connection error")
 	ErrLogerInitialization           = errors.New("logger initialization error")
+	ErrGRPCAddressMissed             = errors.New("grpc address missed error")
 )

@@ -47,6 +47,8 @@ type ServerParameters struct {
 	ProfilingDir           string // Директория для сохранения профилей
 	CryptoKey              string // Файл с крипто ключом
 	TrustedSubnet          string // Доверенная подсеть (CIDR) для проверки IP
+	UseGRPC                bool
+	GRPCAddress            string
 }
 
 // parseServerParameters парсит параметры сервера из переменных окружения и флагов.
@@ -72,6 +74,8 @@ func parseServerParameters() (*ServerParameters, error) {
 	cryptoKeyParameter := cryptoKeyParameter()
 	configFileParameter := configFileParameter()
 	trustedSubnetParameter := trustedSubnetParameter()
+	useGRPCParameter := useGRPCParameter()
+	grpcAddressParameter := grpcAddressParameter()
 
 	flag.Parse()
 
@@ -89,6 +93,8 @@ func parseServerParameters() (*ServerParameters, error) {
 		ProfilingDir:           profileDirParameter,
 		CryptoKey:              cryptoKeyParameter,
 		TrustedSubnet:          trustedSubnetParameter,
+		UseGRPC:                useGRPCParameter,
+		GRPCAddress:            grpcAddressParameter,
 	}
 
 	if configFileParameter == "" {
@@ -331,4 +337,28 @@ func trustedSubnetParameter() string {
 	flag.StringVar(&trustedSubnet, "t", trustedSubnet, "Trusted subnet in CIDR format (e.g. 192.168.1.0/24)")
 
 	return trustedSubnet
+}
+
+func useGRPCParameter() bool {
+	useGRPC := false
+
+	if env, ok := os.LookupEnv("USE_GRPC"); ok {
+		useGRPC, _ = strconv.ParseBool(env)
+	}
+
+	flag.BoolVar(&useGRPC, "grpc", useGRPC, "Use gRPC protocol")
+
+	return useGRPC
+}
+
+func grpcAddressParameter() string {
+	grpcAddr := ""
+
+	if env, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
+		grpcAddr = env
+	}
+
+	flag.StringVar(&grpcAddr, "grpc-addr", grpcAddr, "gRPC server address")
+
+	return grpcAddr
 }

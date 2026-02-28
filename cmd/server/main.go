@@ -32,15 +32,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/server"
 	"github.com/Ko4etov/go-metrics/internal/server/config"
-	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
+	serverfactory "github.com/Ko4etov/go-metrics/internal/server/server"
 )
 
 var (
@@ -58,26 +56,28 @@ var (
 //
 // В случае ошибки при инициализации конфигурации программа завершается с panic.
 func main() {
-	info := buildinfo.New(buildVersion, buildDate, buildCommit)
-	info.Print()
-
-	ctx, stop := signal.NotifyContext(context.Background(), 
+    ctx, stop := signal.NotifyContext(context.Background(), 
         syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
     defer stop()
-	
-	// Инициализация конфигурации сервера
-	config, err := config.New()
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
-		os.Exit(1)
+    config, err := config.New()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    server, err := serverfactory.NewServer(ctx, config)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	if err := server.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 
-    // Создаем сервер с контекстом
-    server := server.New(ctx, config)
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-    // Запускаем (блокируется до остановки)
-    if err := server.Run(); err != nil {
-        log.Fatal(err)
+    if err := server.Stop(shutdownCtx); err != nil {
+		log.Fatalf("Error during shutdown: %v", err)
     }
 }

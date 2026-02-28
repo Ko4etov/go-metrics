@@ -2,17 +2,12 @@ package middlewares
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 )
-
-// CryptoConfig содержит конфигурацию для расшифровки.
-type CryptoConfig struct {
-	CryptoKey string // Файл с ключом для расшифровки
-}
 
 // shouldDecrypt проверяет, нужно ли расшифровывать запрос.
 func shouldDecrypt(req *http.Request) bool {
@@ -25,13 +20,9 @@ func shouldDecrypt(req *http.Request) bool {
 }
 
 // WithDecryption возвращает middleware для расшифровки запросов.
-func WithDecryption(config *CryptoConfig) func(http.Handler) http.Handler {
+func WithDecryption(privateKey *rsa.PrivateKey) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			privateKey, err := crypto.LoadPrivateKey(config.CryptoKey)
-			if err != nil {
-				log.Fatal("Failed to load private key:", err)
-			}
 
 			if !shouldDecrypt(req) {
 				next.ServeHTTP(res, req)
