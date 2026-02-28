@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
 	"github.com/Ko4etov/go-metrics/internal/proto"
@@ -14,7 +13,6 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// GRPCSender отправляет метрики по gRPC.
 type GRPCSender struct {
 	client     proto.MetricsClient
 	conn       *grpc.ClientConn
@@ -23,12 +21,9 @@ type GRPCSender struct {
 	localIP    string
 }
 
-// New создает новый gRPC отправитель.
 func New(serverAddr, hashKey string) (*GRPCSender, error) {
-	conn, err := grpc.Dial(serverAddr,
+	conn, err := grpc.NewClient(serverAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-		grpc.WithTimeout(5*time.Second),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
@@ -36,7 +31,6 @@ func New(serverAddr, hashKey string) (*GRPCSender, error) {
 
 	client := proto.NewMetricsClient(conn)
 	
-	// Получаем локальный IP
 	localIP, _ := getLocalIP()
 
 	return &GRPCSender{
@@ -48,13 +42,11 @@ func New(serverAddr, hashKey string) (*GRPCSender, error) {
 	}, nil
 }
 
-// SendMetrics отправляет метрики на сервер.
 func (s *GRPCSender) SendMetrics(metrics []models.Metrics) {
 	if len(metrics) == 0 {
 		return
 	}
 
-	// Конвертируем модели в protobuf
 	protoMetrics := make([]*proto.Metric, 0, len(metrics))
 	for _, m := range metrics {
 		pm := &proto.Metric{
@@ -77,25 +69,21 @@ func (s *GRPCSender) SendMetrics(metrics []models.Metrics) {
 		Metrics: protoMetrics,
 	}
 
-	// Добавляем IP в метаданные
 	ctx := metadata.NewOutgoingContext(context.Background(),
 		metadata.Pairs("x-real-ip", s.localIP))
 
-	// Отправляем запрос
 	_, err := s.client.UpdateMetrics(ctx, req)
 	if err != nil {
 		log.Printf("Failed to send metrics via gRPC: %v", err)
 	}
 }
 
-// Stop закрывает соединение.
 func (s *GRPCSender) Stop() {
 	if s.conn != nil {
 		s.conn.Close()
 	}
 }
 
-// convertType конвертирует тип метрики в protobuf enum.
 func convertType(mType string) proto.Metric_MType {
 	switch mType {
 	case "counter":
@@ -105,7 +93,6 @@ func convertType(mType string) proto.Metric_MType {
 	}
 }
 
-// getLocalIP получает локальный IP адрес.
 func getLocalIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

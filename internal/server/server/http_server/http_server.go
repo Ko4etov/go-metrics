@@ -51,7 +51,7 @@ func (s *HTTPServer) Start() error {
 
     serverRouter, err := router.New(routerConfig)
     if err != nil {
-        return fmt.Errorf("Router initialization failed: %w", err)
+        return fmt.Errorf("router initialization failed: %w", err)
     }
 
     s.httpServer = &http.Server{
@@ -63,7 +63,7 @@ func (s *HTTPServer) Start() error {
 
     go func() {
         if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-            errorsChan <- fmt.Errorf("HTTP server error: %v", err)
+            errorsChan <- fmt.Errorf("http server error: %v", err)
         }
     }()
 
@@ -88,12 +88,12 @@ func (s *HTTPServer) Stop(ctx context.Context) error {
         defer close(errorChan)
 
         if err := s.httpServer.Shutdown(context.Background()); err != nil {
-			errorChan <- fmt.Errorf("HTTP server shutdown error: %w", err)
+			errorChan <- fmt.Errorf("http server shutdown error: %w", err)
 			return
         }
 
         if err := s.BaseServer.Stop(); err != nil {
-			errorChan <- fmt.Errorf("Base server shutdown error: %w", err)
+			errorChan <- fmt.Errorf("base server shutdown error: %w", err)
 			return
         }
 		errorChan <- nil

@@ -33,7 +33,7 @@ func New(ctx context.Context, config *config.AgentConfig) (*Agent, error) {
 	collector := collector.New()
 	sender, err := metricssenderfactory.NewSender(config)
 	if (err != nil) {
-		return nil, fmt.Errorf("Can not create metric sender: %w", err)
+		return nil, fmt.Errorf("сan not create metric sender: %w", err)
 	}
 	ctx, cancel := context.WithCancel(ctx)
 

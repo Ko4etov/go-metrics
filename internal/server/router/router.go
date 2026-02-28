@@ -44,7 +44,7 @@ func New(config *RouteConfig) (*chi.Mux, error) {
 	if config.CryptoKey != "" {
 		privateKey, err := crypto.LoadPrivateKey(config.CryptoKey)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load private key: %w", err)
+			return nil, fmt.Errorf("failed to load private key: %w", err)
 		}
 		r.Use(middlewares.WithDecryption(privateKey))
 	}

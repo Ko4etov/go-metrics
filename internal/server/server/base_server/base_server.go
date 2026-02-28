@@ -1,4 +1,4 @@
-package baseServer
+package baseserver
 
 import (
 	"fmt"
@@ -79,18 +79,18 @@ func (b *BaseServer) initAudit() error {
 func (b *BaseServer) Stop() error {
 	if b.Config.StoreMetricsInterval > 0 {
 		if err := b.Storage.StopPeriodicSave(); err != nil {
-			return fmt.Errorf("Error stopping periodic save: %v", err)
+			return fmt.Errorf("error stopping periodic save: %v", err)
 		}
 	} else if b.Config.FileStorageMetricsPath != "" {
 		if err := b.Storage.SaveToFile(); err != nil {
-			return fmt.Errorf("Failed to save metrics: %v", err)
+			return fmt.Errorf("failed to save metrics: %v", err)
 		}
 	}
 
 	// Закрытие файловых аудиторов
 	for _, fa := range b.FileAuditors {
 		if err := fa.Close(); err != nil {
-			return fmt.Errorf("Failed to close file auditor: %v", err)
+			return fmt.Errorf("failed to close file auditor: %v", err)
 		}
 	}
 
