@@ -39,6 +39,7 @@ import (
 
 	"github.com/Ko4etov/go-metrics/internal/server/config"
 	serverfactory "github.com/Ko4etov/go-metrics/internal/server/server"
+	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
 )
 
 var (
@@ -56,6 +57,9 @@ var (
 //
 // В случае ошибки при инициализации конфигурации программа завершается с panic.
 func main() {
+	info := buildinfo.New(buildVersion, buildDate, buildCommit)
+	info.Print()
+
     ctx, stop := signal.NotifyContext(context.Background(), 
         syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
     defer stop()
