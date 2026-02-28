@@ -148,6 +148,8 @@ func (ms *MetricsStorage) StopPeriodicSave() error {
 			return fmt.Errorf("Error saving metrics on shutdown: %v", err)
 		}
 	}
+
+	return nil
 }
 
 // LoadFromFile загружает метрики из файла.
