@@ -31,11 +31,14 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"context"
+	"log"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/Ko4etov/go-metrics/internal/server"
 	"github.com/Ko4etov/go-metrics/internal/server/config"
+	serverfactory "github.com/Ko4etov/go-metrics/internal/server/server"
 	"github.com/Ko4etov/go-metrics/internal/service/buildinfo"
 )
 
@@ -56,20 +59,29 @@ var (
 func main() {
 	info := buildinfo.New(buildVersion, buildDate, buildCommit)
 	info.Print()
-	
-	// Инициализация конфигурации сервера
-	config, err := config.New()
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
-		os.Exit(1)
+    ctx, stop := signal.NotifyContext(context.Background(), 
+        syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+    defer stop()
+
+    config, err := config.New()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    server, err := serverfactory.NewServer(ctx, config)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	if err := server.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 
-	// Создание и запуск сервера
-	err = server.New(config).Run()
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
-		os.Exit(1)
-	}
+    if err := server.Stop(shutdownCtx); err != nil {
+		log.Fatalf("Error during shutdown: %v", err)
+    }
 }

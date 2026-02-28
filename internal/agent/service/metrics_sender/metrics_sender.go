@@ -5,10 +5,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -16,6 +20,8 @@ import (
 	"github.com/go-resty/resty/v2"
 
 	"github.com/Ko4etov/go-metrics/internal/models"
+	"github.com/Ko4etov/go-metrics/internal/server/service/logger"
+	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 	retriableagent "github.com/Ko4etov/go-metrics/internal/service/retriable_agent"
 )
 
@@ -24,6 +30,7 @@ import (
 type MetricsSenderService struct {
 	ServerAddress string
 	HashKey       string
+	CryptoKey     *rsa.PublicKey
 	Client        *resty.Client
 	BatchSize     int
 	RateLimit     int
@@ -33,7 +40,7 @@ type MetricsSenderService struct {
 }
 
 // New создает новый отправитель метрик.
-func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderService {
+func New(serverAddress string, hashKey string, rateLimit int, cryptoKey string) *MetricsSenderService {
 	client := resty.New().
 		SetTimeout(5 * time.Second).
 		SetRetryCount(2)
@@ -43,11 +50,21 @@ func New(serverAddress string, hashKey string, rateLimit int) *MetricsSenderServ
 	sender := &MetricsSenderService{
 		ServerAddress: serverAddress,
 		HashKey:       hashKey,
+		CryptoKey:     nil,
 		Client:        client,
 		BatchSize:     10,
 		RetiebleAgent: retriableAgent,
 		RateLimit:     rateLimit,
 		jobs:          make(chan []models.Metrics, rateLimit),
+	}
+
+	if cryptoKey != "" {
+		publicKey, err := crypto.LoadPublicKey(cryptoKey)
+		if err != nil {
+			logger.Logger.Infof("Warning: failed to load public key from %s: %v\n", cryptoKey, err)
+		} else {
+			sender.CryptoKey = publicKey
+		}
 	}
 
 	sender.startWorkers()
@@ -147,6 +164,11 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 
 	url := fmt.Sprintf("http://%s/updates/", s.ServerAddress)
 
+	localIP, err := getLocalIP()
+	if err != nil {
+		log.Printf("Warning: failed to get local IP: %v", err)
+	}
+
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		return fmt.Errorf("marshal metrics failed: %w", err)
@@ -157,11 +179,36 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 		return fmt.Errorf("compress data failed: %w", err)
 	}
 
+	var finalData []byte
+    var contentType string
+    var contentEncoding string
+
+    if s.CryptoKey != nil {
+        encryptedData, err := crypto.Encrypt(compressedData, s.CryptoKey)
+        if err != nil {
+            return fmt.Errorf("encrypt data failed: %w", err)
+        }
+        finalData = encryptedData
+        contentType = "application/octet-stream"
+        contentEncoding = ""
+    } else {
+        finalData = compressedData
+        contentType = "application/json"
+        contentEncoding = "gzip"
+    }
+
 	req := s.Client.R().
-		SetBody(compressedData).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetHeader("Accept-Encoding", "gzip")
+        SetBody(finalData).
+        SetHeader("Content-Type", contentType)
+
+	if localIP != "" {
+		req.SetHeader("X-Real-IP", localIP)
+	}
+
+    if contentEncoding != "" {
+        req.SetHeader("Content-Encoding", contentEncoding)
+    }
+    req.SetHeader("Accept-Encoding", "gzip")
 
 	req = s.addHashHeaders(req, jsonData)
 
@@ -179,6 +226,37 @@ func (s *MetricsSenderService) sendBatch(metrics []models.Metrics) error {
 	}
 
 	return nil
+}
+
+func getLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+
+	hostsAddrs, err := net.LookupHost(hostname)
+	if err != nil {
+		return "", err
+	}
+
+	if len(hostsAddrs) > 0 {
+		return hostsAddrs[0], nil
+	}
+
+	return "", fmt.Errorf("could not determine local IP")
 }
 
 // compressData сжимает данные с помощью gzip.

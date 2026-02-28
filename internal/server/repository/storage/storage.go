@@ -136,8 +136,7 @@ func (ms *MetricsStorage) SaveToFile() error {
 	return nil
 }
 
-// StopPeriodicSave останавливает периодическое сохранение.
-func (ms *MetricsStorage) StopPeriodicSave() {
+func (ms *MetricsStorage) StopPeriodicSave() error {
 	if ms.saveTicker != nil {
 		ms.saveTicker.Stop()
 		close(ms.done)
@@ -145,11 +144,11 @@ func (ms *MetricsStorage) StopPeriodicSave() {
 
 	if ms.config.FileStorageMetricsPath != "" {
 		if err := ms.SaveToFile(); err != nil {
-			fmt.Printf("Error saving metrics on shutdown: %v\n", err)
-		} else {
-			fmt.Printf("Metrics saved to %s on shutdown\n", ms.config.FileStorageMetricsPath)
+			return fmt.Errorf("error saving metrics on shutdown: %v", err)
 		}
 	}
+
+	return nil
 }
 
 // LoadFromFile загружает метрики из файла.

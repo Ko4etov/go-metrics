@@ -2,6 +2,9 @@
 package router
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -9,25 +12,42 @@ import (
 	"github.com/Ko4etov/go-metrics/internal/server/middlewares"
 	"github.com/Ko4etov/go-metrics/internal/server/repository/storage"
 	"github.com/Ko4etov/go-metrics/internal/server/service/audit"
+	"github.com/Ko4etov/go-metrics/internal/service/crypto"
 )
 
 // RouteConfig содержит конфигурацию для маршрутизатора.
 type RouteConfig struct {
-	Storage  *storage.MetricsStorage // хранилище метрик
-	Pgx      *pgxpool.Pool           // пул подключений к базе данных
-	HashKey  string                  // ключ для хеширования
-	AuditSvc *audit.AuditService     // сервис аудита (опционально)
+	Storage    *storage.MetricsStorage // хранилище метрик
+	Pgx        *pgxpool.Pool           // пул подключений к базе данных
+	HashKey    string                  // ключ для хеширования
+	AuditSvc   *audit.AuditService     // сервис аудита (опционально)
+	CryptoKey  string                  // Crypto key
+	TrustedNet *net.IPNet              // доверенная подсеть (CIDR) для проверки IP
 }
 
 // New создает новый маршрутизатор с настройкой всех middleware и обработчиков.
-func New(config *RouteConfig) *chi.Mux {
+func New(config *RouteConfig) (*chi.Mux, error) {
 	metricHandler := handler.New(config.Storage, config.Pgx)
+
 	hashConfig := &middlewares.HashConfig{
 		SecretKey: config.HashKey,
 	}
 
 	r := chi.NewRouter()
 
+	if config.TrustedNet != nil {
+		ipCheckConfig := &middlewares.IPConfig{
+			TrustedNet: config.TrustedNet,
+		}
+		r.Use(middlewares.WithIPCheck(ipCheckConfig))
+	}
+	if config.CryptoKey != "" {
+		privateKey, err := crypto.LoadPrivateKey(config.CryptoKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load private key: %w", err)
+		}
+		r.Use(middlewares.WithDecryption(privateKey))
+	}
 	r.Use(middlewares.WithCompression)
 	r.Use(middlewares.WithHashing(hashConfig))
 	r.Use(middlewares.WithLogging)
@@ -45,5 +65,5 @@ func New(config *RouteConfig) *chi.Mux {
 	r.Get("/ping", metricHandler.DBPing)
 	r.Get("/", metricHandler.GetMetrics)
 
-	return r
+	return r, nil
 }

@@ -23,6 +23,9 @@ type AgentParameters struct {
 	PollInterval   int
 	HashKey        string
 	RateLimit      int
+	CryptoKey      string
+	UseGRPC        bool
+	GRPCAddress    string
 }
 
 // parseAgentParameters парсит параметры агента.
@@ -34,6 +37,9 @@ func parseAgentParameters() *AgentParameters {
 	pollIntervalParameter := pollIntervalParameter()
 	hashKeyParameter := hashKeyParameter()
 	rateLimitParameter := rateLimitParameter()
+	cryptoKeyParameter := cryptoKeyParameter()
+	useGRPCParameter := useGRPCParameter()
+	grpcAddressParameter := grpcAddressParameter()
 
 	flag.Parse()
 
@@ -43,6 +49,9 @@ func parseAgentParameters() *AgentParameters {
 		PollInterval:   pollIntervalParameter,
 		HashKey:        hashKeyParameter,
 		RateLimit:      rateLimitParameter,
+		CryptoKey:      cryptoKeyParameter,
+		UseGRPC:        useGRPCParameter,
+		GRPCAddress:    grpcAddressParameter,
 	}
 }
 
@@ -125,4 +134,44 @@ func pollIntervalParameter() int {
 	}
 
 	return pollInterval
+}
+
+func cryptoKeyParameter() string {
+	cryptoKey := ""
+
+	if env, ok := os.LookupEnv("CRYPTO_KEY_AGENT"); ok {
+		return env
+	}
+
+	if env, ok := os.LookupEnv("CRYPTO_KEY"); ok {
+		cryptoKey = env
+	}
+
+	flag.StringVar(&cryptoKey, "crypto-key", cryptoKey, "Crypto key")
+
+	return cryptoKey
+}
+
+func useGRPCParameter() bool {
+	useGRPC := false
+
+	if env, ok := os.LookupEnv("USE_GRPC"); ok {
+		useGRPC, _ = strconv.ParseBool(env)
+	}
+
+	flag.BoolVar(&useGRPC, "grpc", useGRPC, "Use gRPC protocol")
+
+	return useGRPC
+}
+
+func grpcAddressParameter() string {
+	grpcAddr := ""
+
+	if env, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
+		grpcAddr = env
+	}
+
+	flag.StringVar(&grpcAddr, "grpc-addr", grpcAddr, "gRPC server address")
+
+	return grpcAddr
 }
